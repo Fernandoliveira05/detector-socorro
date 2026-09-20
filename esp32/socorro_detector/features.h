@@ -4,13 +4,15 @@
 #pragma once
 #include "config.h"
 
-// Calcula o RMS de um bloco (usado no gate de energia — feature do enunciado).
-float compute_rms(const float* x, int n);
+// Lêem a janela de 1 s DIRETO do buffer circular (ring), terminando em end_idx
+// (= writeIdx). Assim não precisamos de um segundo buffer de 1 s (economia de RAM).
 
-// Extrai MFCC de uma janela de CLIP_LEN amostras (float, -1..1).
-// Escreve N_FRAMES*N_MFCC floats em out (layout [frame][coef]), já normalizado
-// (pico->0.95 antes, e média/desvio por-utterance depois), igual ao treino.
-void compute_mfcc(const float* clip, float* out);
+// RMS (0..1) da janela — usado no gate de energia (feature do enunciado).
+float compute_rms(const int16_t* ring, int end_idx);
+
+// MFCC da janela -> N_FRAMES*N_MFCC floats em out, normalizado (pico->0.95 +
+// estatísticas globais do treino em feat_norm.h), igual ao treino.
+void compute_mfcc(const int16_t* ring, int end_idx, float* out);
 
 // Inicializa tabelas (mel filterbank, janela de Hann, DCT). Chamar 1x no setup.
 void features_init();

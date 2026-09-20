@@ -445,9 +445,16 @@
        resolvers pedem <code>AddResizeNearestNeighbor</code> ou nomes distintos — o compilador
        diz qual falta; é só adicionar a linha correspondente no <code>setupModel()</code>.</p></details>
 
+  <details><summary>Erro de RAM: <code>region `dram0_0_seg' overflowed</code> ao compilar</summary>
+    <p>É falta de memória RAM interna. O firmware já foi deixado <b>enxuto</b> (áudio em
+       int16, leitura direta do buffer, sem matriz mel) e deve caber. Se ainda estourar por
+       pouco: em <code>socorro_detector.ino</code> reduza <code>kArenaSize</code> (ex.: 24&nbsp;KB)
+       e/ou em <code>config.h</code> diminua <code>RING_LEN</code> (ex.: <code>CLIP_LEN + 1024</code>).</p></details>
+
   <details><summary>“Failed to allocate tensors” / reinicia sozinho</summary>
-    <p>Falta memória para o modelo. Em <code>socorro_detector.ino</code> aumente
-       <code>kArenaSize</code> (ex.: de 40 para 60&nbsp;KB).</p></details>
+    <p>A arena do modelo ficou pequena. Em <code>socorro_detector.ino</code> aumente
+       <code>kArenaSize</code> (padrão 28&nbsp;KB → tente 36–40&nbsp;KB). É o oposto do erro de
+       RAM acima, então ache o equilíbrio (subir aqui, e se faltar RAM, baixar o <code>RING_LEN</code>).</p></details>
 
   <details><summary>A porta USB não aparece</summary>
     <p>Instale o driver do conversor USB (CP2102 – Silicon Labs, ou CH340). Troque o cabo

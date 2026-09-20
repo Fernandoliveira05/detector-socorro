@@ -26,7 +26,7 @@
 #include "tensorflow/lite/schema/schema_generated.h"
 
 // ---------------- Buffer circular (compartilhado T1<->T2) ----------------
-static float   ring[RING_LEN];
+static int16_t ring[RING_LEN];                  // áudio como int16 (economia de RAM)
 static volatile uint32_t writeIdx = 0;          // próxima posição de escrita
 static SemaphoreHandle_t ringMutex;
 static SemaphoreHandle_t blockSem;              // T1 -> T2 (novo bloco pronto)
@@ -40,7 +40,7 @@ static volatile uint32_t alertUntil = 0;      // millis até quando o alerta fic
 static volatile float    lastProb = 0.0f;
 
 // ---------------- TFLite Micro ----------------
-constexpr int kArenaSize = 40 * 1024;
+constexpr int kArenaSize = 28 * 1024;   // modelo pequeno; aumente se "AllocateTensors failed"
 static uint8_t tensor_arena[kArenaSize];
 static tflite::MicroInterpreter* interpreter = nullptr;
 static TfLiteTensor* input = nullptr;
@@ -58,9 +58,8 @@ void CaptureTask(void* arg) {
     int got = nbytes / sizeof(int32_t);
     xSemaphoreTake(ringMutex, portMAX_DELAY);
     for (int i = 0; i < got; i++) {
-      // INMP441: 24 bits alinhados ao MSB dentro de 32 bits
-      float s = (float)(raw[i] >> 8) / 8388608.0f;   // -> ~[-1, 1]
-      ring[writeIdx] = s;
+      // INMP441: amostra de 24 bits alinhada ao topo de 32 bits -> pega os 16 bits altos
+      ring[writeIdx] = (int16_t)(raw[i] >> 16);
       writeIdx = (writeIdx + 1) % RING_LEN;
     }
     xSemaphoreGive(ringMutex);
@@ -72,26 +71,22 @@ void CaptureTask(void* arg) {
 // T2 — Extração de features (prioridade média): RMS + MFCC -> fila
 // ============================================================================
 void FeatureTask(void* arg) {
-  static float win[CLIP_LEN];
   Feature feat;
   while (true) {
     xSemaphoreTake(blockSem, portMAX_DELAY);     // espera bloco novo de T1
     uint32_t t0 = micros();
 
-    // copia a última janela de 1s do buffer circular (seção crítica curta)
+    // pega o índice atual do buffer (seção crítica curta protegida por mutex)
     xSemaphoreTake(ringMutex, portMAX_DELAY);
-    uint32_t end = writeIdx;
-    for (int i = 0; i < CLIP_LEN; i++) {
-      int32_t idx = (int32_t)end - CLIP_LEN + i;
-      idx = ((idx % RING_LEN) + RING_LEN) % RING_LEN;
-      win[i] = ring[idx];
-    }
+    int end = (int)writeIdx;
     xSemaphoreGive(ringMutex);
+    // lê a janela de 1 s DIRETO do ring (a captura escreve à frente; só alcançaria
+    // esta janela depois de ~1 s, e o MFCC leva ~30 ms -> seguro sem cópia)
 
     // gate de energia (feature RMS do enunciado): pula fundo/silêncio
-    if (compute_rms(win, CLIP_LEN) < RMS_GATE) continue;
+    if (compute_rms(ring, end) < RMS_GATE) continue;
 
-    compute_mfcc(win, feat.mfcc);
+    compute_mfcc(ring, end, feat.mfcc);
     feat.t_capture_us = t0;
     xQueueSend(featQueue, &feat, 0);             // envia p/ T3 (descarta se cheia)
 
