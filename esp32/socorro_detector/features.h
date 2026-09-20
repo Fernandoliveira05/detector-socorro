@@ -2,6 +2,7 @@
 // features.h — extração de RMS e MFCC no dispositivo (espelha common.py).
 // ============================================================================
 #pragma once
+#include <stdint.h>      // int16_t
 #include "config.h"
 
 // Lêem a janela de 1 s DIRETO do buffer circular (ring), terminando em end_idx

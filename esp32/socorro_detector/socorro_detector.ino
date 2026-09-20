@@ -40,7 +40,7 @@ static volatile uint32_t alertUntil = 0;      // millis até quando o alerta fic
 static volatile float    lastProb = 0.0f;
 
 // ---------------- TFLite Micro ----------------
-constexpr int kArenaSize = 28 * 1024;   // modelo pequeno; aumente se "AllocateTensors failed"
+constexpr int kArenaSize = 26 * 1024;   // modelo pequeno; aumente se "AllocateTensors failed"
 static uint8_t tensor_arena[kArenaSize];
 static tflite::MicroInterpreter* interpreter = nullptr;
 static TfLiteTensor* input = nullptr;

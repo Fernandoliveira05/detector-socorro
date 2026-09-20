@@ -23,8 +23,8 @@
 #define STEP_SAMPLES  1000           // ~62 ms: passo da janela deslizante (amostragem densa)
 
 // ---- Buffer circular ----
-// int16 + só a folga necessária (economia de RAM: antes era float*2s = 128 KB)
-#define RING_LEN      (CLIP_LEN + 2048)
+// int16 + folga mínima segura (a leitura da janela leva ~30ms; 512 amostras = 32ms)
+#define RING_LEN      (CLIP_LEN + 512)
 
 // ---- Pinos ----
 // INMP441 (I2S):
