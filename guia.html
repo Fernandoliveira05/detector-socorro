@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Passo a passo — Detector de Socorro no ESP32</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16202e; --ink-soft:#4a5768; --paper:#f6f7f9; --card:#ffffff;
+    --line:#e2e6ec; --navy:#132238; --alert:#e4322b; --alert-soft:#fdecea;
+    --ok:#0c8f86; --ok-soft:#e6f5f3; --warn:#b7791f; --warn-soft:#fbf3e2;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Inter",system-ui,-apple-system,sans-serif;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:"Space Grotesk",system-ui,sans-serif;line-height:1.15;letter-spacing:-.01em;margin:0}
+  a{color:var(--alert)}
+  code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:.85em;background:#eef1f5;padding:.12em .42em;border-radius:4px;color:#2a3a52}
+  .wrap{max-width:800px;margin:0 auto;padding:0 22px}
+
+  header{background:var(--navy);color:#eaf0f7;position:relative;overflow:hidden}
+  .hero{padding:54px 0 48px;position:relative;z-index:2}
+  .kicker{font-family:"Space Grotesk";font-weight:500;font-size:.8rem;color:#7fd8d0;margin-bottom:14px}
+  .hero h1{font-size:clamp(2rem,5vw,3rem);font-weight:700;max-width:18ch}
+  .hero h1 em{font-style:normal;color:var(--alert)}
+  .hero p{color:#aebccd;font-size:1.08rem;max-width:56ch;margin:16px 0 0}
+  .wave{position:absolute;left:0;right:0;bottom:0;height:120px;z-index:1;opacity:.85}
+  .wave path{fill:none;stroke-width:2.5}.wave .base{stroke:#3a5680}.wave .spike{stroke:var(--alert)}
+
+  /* sticky progress nav */
+  nav{position:sticky;top:0;z-index:30;background:rgba(246,247,249,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .bar{height:4px;background:var(--ok);width:0;transition:width .3s}
+  nav .row{display:flex;align-items:center;gap:16px;padding:11px 0;overflow-x:auto}
+  nav .row a{color:var(--ink-soft);text-decoration:none;font-size:.9rem;white-space:nowrap;font-weight:500}
+  nav .row a:hover{color:var(--alert)}
+  .prog{font-family:"Space Grotesk";font-size:.82rem;color:var(--ok);white-space:nowrap;font-weight:500;margin-left:auto}
+
+  section{padding:46px 0;border-bottom:1px solid var(--line)}
+  .part{font-family:"Space Grotesk";font-weight:700;color:var(--alert);font-size:.9rem;margin-bottom:8px}
+  h2{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:700;margin-bottom:6px}
+  .lead{color:var(--ink-soft);margin-bottom:26px;max-width:62ch}
+  h3{font-size:1.15rem;margin:30px 0 6px}
+
+  /* step checkbox item */
+  .step{display:flex;gap:13px;padding:13px 15px;background:var(--card);border:1px solid var(--line);
+    border-radius:11px;margin:9px 0;cursor:pointer;align-items:flex-start;transition:border-color .15s,background .15s}
+  .step:hover{border-color:#c7cfda}
+  .step input{position:absolute;opacity:0;width:0;height:0}
+  .step .box{flex:none;width:24px;height:24px;border:2px solid #c3ccd8;border-radius:7px;display:grid;place-items:center;
+    margin-top:1px;transition:all .15s;font-size:.85rem;color:#fff}
+  .step input:checked ~ .box{background:var(--ok);border-color:var(--ok)}
+  .step input:checked ~ .box::after{content:"✓"}
+  .step:has(input:checked){background:var(--ok-soft);border-color:#bfe5e0}
+  .step:has(input:checked) .txt{color:var(--ink-soft)}
+  .step input:focus-visible ~ .box{outline:2px solid var(--alert);outline-offset:2px}
+  .txt{font-size:.98rem}.txt b{font-weight:600}
+  .txt .sub{display:block;color:var(--ink-soft);font-size:.88rem;margin-top:3px}
+
+  .ok-note,.warn-note{padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0;font-size:.92rem}
+  .ok-note{background:var(--ok-soft);border-left:3px solid var(--ok);color:#0a5f59}
+  .warn-note{background:var(--warn-soft);border-left:3px solid var(--warn);color:#7a5310}
+  .ok-note b,.warn-note b{font-weight:600}
+
+  pre{background:var(--navy);color:#dfe8f2;padding:13px 15px;border-radius:10px;overflow-x:auto;
+    font-family:"SF Mono",monospace;font-size:.82rem;line-height:1.5;margin:10px 0}
+  .pins{width:100%;border-collapse:collapse;margin:12px 0}
+  .pins th,.pins td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);font-size:.92rem}
+  .pins th{font-family:"Space Grotesk";font-weight:500;color:var(--ink-soft);font-size:.8rem}
+  .tag{font-family:"SF Mono",monospace;font-size:.8rem;background:var(--navy);color:#cfe0f2;padding:3px 8px;border-radius:5px}
+
+  details{background:var(--card);border:1px solid var(--line);border-radius:11px;margin:9px 0;padding:2px 16px}
+  summary{cursor:pointer;font-weight:600;padding:12px 0;font-size:.96rem}
+  details[open]{padding-bottom:12px}
+  details p{margin:6px 0;color:var(--ink-soft);font-size:.93rem}
+
+  footer{background:var(--navy);color:#aebccd;padding:34px 0;font-size:.9rem}
+  footer a{color:#7fd8d0}
+  .reset{background:none;border:1px solid #35507a;color:#aebccd;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.85rem;margin-top:14px}
+  @media(prefers-reduced-motion:no-preference){
+    .wave path{stroke-dasharray:2600;stroke-dashoffset:2600;animation:draw 1.8s ease forwards}
+    @keyframes draw{to{stroke-dashoffset:0}}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hero">
+    <div class="kicker">Guia de execução · para você seguir passo a passo</div>
+    <h1>Colocar o detector de <em>“socorro”</em> pra funcionar no ESP32</h1>
+    <p>Siga na ordem. Marque cada passo ao concluir — seu progresso fica salvo neste
+       navegador. Cada etapa tem um “como saber que deu certo”.</p>
+  </div>
+  <svg class="wave" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
+    <path class="base" d="M0,90 L200,90 L240,82 L280,96 L340,88 L420,92 L520,86 L560,40"/>
+    <path class="spike" d="M560,40 L572,6 L584,96 L600,100 L640,90 L760,92 L900,86 L1040,94 L1200,90"/>
+  </svg>
+</header>
+
+<nav>
+  <div class="bar" id="bar"></div>
+  <div class="wrap row">
+    <a href="#a">A· Hardware</a>
+    <a href="#b">B· Arduino</a>
+    <a href="#c">C· Projeto</a>
+    <a href="#d">D· Twilio</a>
+    <a href="#e">E· Enviar</a>
+    <a href="#f">F· Testar</a>
+    <a href="#g">Problemas</a>
+    <span class="prog" id="prog">0 / 0</span>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<section id="visao">
+  <div class="part">Antes de começar</div>
+  <h2>O que você vai fazer</h2>
+  <p class="lead">Quatro blocos: (A) montar o circuito na protoboard, (B) preparar o
+     Arduino IDE, (C) abrir o projeto, (D) configurar a ligação via Twilio, e por fim
+     (E) enviar e (F) testar. Reserve ~1 hora na primeira vez.</p>
+  <div class="warn-note"><b>Você vai precisar de:</b> ESP32 DevKit + cabo USB · microfone INMP441 ·
+     LED vermelho · resistor 220–330Ω · protoboard · jumpers · (opcional) buzzer passivo ·
+     um computador com internet · seu celular.</div>
+</section>
+
+<section id="a">
+  <div class="part">Parte A</div>
+  <h2>Montar o hardware na protoboard</h2>
+  <p class="lead">Com o ESP32 <b>desconectado do USB</b>, encaixe os componentes e os jumpers.
+     A protoboard tem trilhos laterais (+ e −) para alimentação.</p>
+
+  <label class="step"><input type="checkbox" data-id="a1"><span class="box"></span>
+    <span class="txt"><b>1. Espete o ESP32 na protoboard</b><span class="sub">Deixe as duas fileiras de pinos em lados opostos da canaleta central.</span></span></label>
+  <label class="step"><input type="checkbox" data-id="a2"><span class="box"></span>
+    <span class="txt"><b>2. Alimente os trilhos</b><span class="sub">Jumper do pino <span class="tag">3V3</span> do ESP32 → trilho vermelho (+). Jumper do <span class="tag">GND</span> → trilho azul (−).</span></span></label>
+
+  <h3>Microfone INMP441</h3>
+  <table class="pins"><thead><tr><th>Pino do INMP441</th><th>Liga em</th></tr></thead><tbody>
+    <tr><td>VDD</td><td><span class="tag">trilho + (3V3)</span></td></tr>
+    <tr><td>GND</td><td><span class="tag">trilho − (GND)</span></td></tr>
+    <tr><td>L/R</td><td><span class="tag">trilho − (GND)</span></td></tr>
+    <tr><td>WS</td><td><span class="tag">GPIO25</span></td></tr>
+    <tr><td>SCK</td><td><span class="tag">GPIO26</span></td></tr>
+    <tr><td>SD</td><td><span class="tag">GPIO33</span></td></tr>
+  </tbody></table>
+  <label class="step"><input type="checkbox" data-id="a3"><span class="box"></span>
+    <span class="txt"><b>3. Ligue o INMP441</b> conforme a tabela acima (6 fios).</span></label>
+
+  <h3>LED vermelho</h3>
+  <label class="step"><input type="checkbox" data-id="a4"><span class="box"></span>
+    <span class="txt"><b>4. Perna longa (+) do LED → resistor → GPIO23</b><span class="sub">O resistor (220–330Ω) fica entre o GPIO23 e a perna longa do LED. Ordem: GPIO23 → resistor → LED(+).</span></span></label>
+  <label class="step"><input type="checkbox" data-id="a5"><span class="box"></span>
+    <span class="txt"><b>5. Perna curta (−) do LED → trilho − (GND)</b></span></label>
+
+  <h3>Buzzer (opcional)</h3>
+  <label class="step"><input type="checkbox" data-id="a6"><span class="box"></span>
+    <span class="txt"><b>6. Buzzer:</b> pino + → <span class="tag">GPIO27</span>, pino − → trilho − (GND).</span></label>
+
+  <div class="ok-note"><b>Como saber que deu certo:</b> revise cada fio olhando a tabela.
+     LED e resistor ainda não acendem (o programa controla isso). Nada deve esquentar ao
+     conectar o USB depois — se esquentar, desconecte e revise (curto entre + e −).</div>
+</section>
+
+<section id="b">
+  <div class="part">Parte B</div>
+  <h2>Preparar o Arduino IDE</h2>
+  <p class="lead">Instalar o programa, o suporte ao ESP32 e a biblioteca de rede neural.</p>
+
+  <label class="step"><input type="checkbox" data-id="b1"><span class="box"></span>
+    <span class="txt"><b>1. Baixe e instale o Arduino IDE 2.x</b><span class="sub">Em <a href="https://www.arduino.cc/en/software" target="_blank" rel="noopener">arduino.cc/en/software</a>.</span></span></label>
+  <label class="step"><input type="checkbox" data-id="b2"><span class="box"></span>
+    <span class="txt"><b>2. Adicione o suporte ao ESP32</b><span class="sub">Menu <b>Arduino IDE → Settings (Preferences)</b>. No campo “Additional boards manager URLs”, cole a URL abaixo e clique OK.</span></span></label>
+  <pre>https://espressif.github.io/arduino-esp32/package_esp32_index.json</pre>
+  <label class="step"><input type="checkbox" data-id="b3"><span class="box"></span>
+    <span class="txt"><b>3. Instale a placa</b><span class="sub">Ícone de placas (lado esquerdo) → Boards Manager → pesquise <b>esp32</b> → instale “esp32 by Espressif Systems”.</span></span></label>
+  <label class="step"><input type="checkbox" data-id="b4"><span class="box"></span>
+    <span class="txt"><b>4. Instale a biblioteca TensorFlow Lite Micro</b><span class="sub">Ícone de bibliotecas → pesquise <b>Chirale_TensorFlowLite</b> → Install. (É a versão de TFLite Micro que funciona no ESP32.)</span></span></label>
+  <label class="step"><input type="checkbox" data-id="b5"><span class="box"></span>
+    <span class="txt"><b>5. Conecte o ESP32 no USB e selecione a placa</b><span class="sub">Topo: escolha <b>ESP32 Dev Module</b> e a porta (COMx no Windows, /dev/cu.* no Mac).</span></span></label>
+
+  <div class="warn-note"><b>A porta não aparece?</b> Instale o driver USB do seu ESP32
+     (a maioria usa <b>CP2102</b> — driver Silicon Labs; alguns usam <b>CH340</b>). Depois reconecte o cabo.</div>
+  <div class="ok-note"><b>Como saber que deu certo:</b> no topo do Arduino IDE aparece
+     “ESP32 Dev Module” e uma porta selecionada (não “no board / no port”).</div>
+</section>
+
+<section id="c">
+  <div class="part">Parte C</div>
+  <h2>Abrir o projeto</h2>
+  <p class="lead">O código já está pronto na pasta <code>esp32/</code> deste projeto.</p>
+
+  <label class="step"><input type="checkbox" data-id="c1"><span class="box"></span>
+    <span class="txt"><b>1. Abra <code>esp32/socorro_detector.ino</code></b><span class="sub">Dê duplo clique nele — o Arduino IDE abre a pasta inteira (todas as abas: config.h, features, notificacao, model_data, etc.).</span></span></label>
+  <label class="step"><input type="checkbox" data-id="c2"><span class="box"></span>
+    <span class="txt"><b>2. Confira que existem as abas</b> <code>model_data.h</code> e <code>feat_norm.h</code><span class="sub">São o modelo treinado e a normalização — já vêm prontos.</span></span></label>
+  <div class="ok-note"><b>Como saber que deu certo:</b> você vê várias abas no topo do editor
+     e nenhuma está vazia. Ainda <b>não</b> compile — falta o <code>secrets.h</code> (Parte D/E).</div>
+</section>
+
+<section id="d">
+  <div class="part">Parte D</div>
+  <h2>Configurar a ligação (Twilio)</h2>
+  <p class="lead">O Twilio faz a ligação de verdade. A conta trial é grátis e só liga para
+     números que você verificar — perfeito para a demo.</p>
+
+  <label class="step"><input type="checkbox" data-id="d1"><span class="box"></span>
+    <span class="txt"><b>1. Crie a conta</b><span class="sub">Em <a href="https://www.twilio.com/try-twilio" target="_blank" rel="noopener">twilio.com/try-twilio</a>. Confirme e-mail e celular.</span></span></label>
+  <label class="step"><input type="checkbox" data-id="d2"><span class="box"></span>
+    <span class="txt"><b>2. Copie o Account SID e o Auth Token</b><span class="sub">Ficam na página inicial do Console (Account Info). Guarde os dois.</span></span></label>
+  <label class="step"><input type="checkbox" data-id="d3"><span class="box"></span>
+    <span class="txt"><b>3. Pegue um número Twilio</b><span class="sub">Phone Numbers → Manage → Buy a number (o trial dá crédito). Esse número é o <code>TWILIO_FROM</code>.</span></span></label>
+  <label class="step"><input type="checkbox" data-id="d4"><span class="box"></span>
+    <span class="txt"><b>4. Verifique o SEU celular como destino</b><span class="sub">Phone Numbers → Verified Caller IDs → adicione e verifique seu número. Ele será o <code>ALERT_TO</code> (o “190” simulado).</span></span></label>
+  <label class="step"><input type="checkbox" data-id="d5"><span class="box"></span>
+    <span class="txt"><b>5. Crie um TwiML Bin (o que a “polícia” ouve)</b><span class="sub">Develop → TwiML Bins → Create. Cole o XML abaixo, salve e copie a URL (será o <code>TWIML_URL</code>).</span></span></label>
+  <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;Response&gt;
+  &lt;Say language="pt-BR" voice="Polly.Camila"&gt;
+    Emergência. Um pedido de socorro foi detectado.
+    Enviando ajuda ao local.
+  &lt;/Say&gt;
+&lt;/Response&gt;</pre>
+  <div class="warn-note"><b>Ética/segurança:</b> use o <b>seu próprio número</b> como destino.
+     É uma <b>simulação</b> didática — não ligue para o 190 real.</div>
+</section>
+
+<section id="e">
+  <div class="part">Parte E</div>
+  <h2>Preencher credenciais e enviar</h2>
+
+  <label class="step"><input type="checkbox" data-id="e1"><span class="box"></span>
+    <span class="txt"><b>1. Crie o arquivo <code>secrets.h</code></b><span class="sub">Na pasta <code>esp32/</code>, duplique <code>secrets_exemplo.h</code> e renomeie a cópia para <code>secrets.h</code>.</span></span></label>
+  <label class="step"><input type="checkbox" data-id="e2"><span class="box"></span>
+    <span class="txt"><b>2. Preencha o <code>secrets.h</code></b><span class="sub">WiFi (nome e senha) + Twilio (SID, Token, FROM, ALERT_TO, TWIML_URL) dos passos da Parte D.</span></span></label>
+  <div class="ok-note">Só quer testar o <b>LED</b> (sem ligação) agora? Preencha com valores fictícios —
+     o WiFi falha, mas o LED, o buzzer e o Serial funcionam normalmente.</div>
+  <label class="step"><input type="checkbox" data-id="e3"><span class="box"></span>
+    <span class="txt"><b>3. Clique em Upload (seta →)</b><span class="sub">O Arduino compila e grava. Na primeira vez demora (baixa dependências).</span></span></label>
+  <div class="warn-note"><b>Travou em “Connecting…”?</b> Segure o botão <b>BOOT</b> do ESP32
+     enquanto aparece “Connecting….___”, solte quando começar a gravar. Erro de compilação
+     sobre <code>tensorflow/lite/...</code>? Veja a seção Problemas.</div>
+  <label class="step"><input type="checkbox" data-id="e4"><span class="box"></span>
+    <span class="txt"><b>4. Abra o Monitor Serial a 115200</b><span class="sub">Ícone de lupa no topo direito; ajuste a velocidade para 115200 baud.</span></span></label>
+  <div class="ok-note"><b>Como saber que deu certo:</b> o Serial mostra
+     <code>Conectando WiFi ok</code> (ou “FALHOU” se você pôs valores fictícios) e
+     <code>Detector de socorro iniciado.</code></div>
+</section>
+
+<section id="f">
+  <div class="part">Parte F</div>
+  <h2>Testar</h2>
+
+  <h3>Fase 1 — LED vermelho</h3>
+  <label class="step"><input type="checkbox" data-id="f1"><span class="box"></span>
+    <span class="txt"><b>1. Grite “SOCORRO” perto do microfone</b></span></label>
+  <div class="ok-note"><b>Esperado:</b> o LED vermelho <b>pisca por ~8 s</b>, o buzzer bipa,
+     e o Serial fica repetindo <code>[ALERTA] SOCORRO detectado…</code></div>
+
+  <h3>Fase 2 — Ligação</h3>
+  <label class="step"><input type="checkbox" data-id="f2"><span class="box"></span>
+    <span class="txt"><b>2. Com o WiFi conectado, grite “SOCORRO” de novo</b></span></label>
+  <div class="ok-note"><b>Esperado:</b> o Serial mostra <code>[Twilio] … HTTP 201</code> e o
+     <b>seu celular toca</b> reproduzindo a mensagem de emergência. 🚨📞</div>
+  <div class="warn-note"><b>Dispara com qualquer som ou não dispara?</b> Ajuste a sensibilidade
+     em <code>config.h</code>: <code>THRESHOLD</code> (0.55 padrão — maior = mais rígido) e
+     <code>CONSEC</code> (nº de janelas seguidas). Reenvie depois de mudar.</div>
+</section>
+
+<section id="g">
+  <div class="part">Se algo der errado</div>
+  <h2>Problemas comuns</h2>
+
+  <details><summary>Erro de compilação citando <code>tensorflow/lite/…</code></summary>
+    <p>A biblioteca TFLite Micro instalada tem nomes de include diferentes. Confirme que
+       instalou <b>Chirale_TensorFlowLite</b>. Se usar outra, ajuste os <code>#include</code>
+       no topo de <code>socorro_detector.ino</code> conforme a documentação dela. Alguns
+       resolvers pedem <code>AddResizeNearestNeighbor</code> ou nomes distintos — o compilador
+       diz qual falta; é só adicionar a linha correspondente no <code>setupModel()</code>.</p></details>
+
+  <details><summary>“Failed to allocate tensors” / reinicia sozinho</summary>
+    <p>Falta memória para o modelo. Em <code>socorro_detector.ino</code> aumente
+       <code>kArenaSize</code> (ex.: de 40 para 60&nbsp;KB).</p></details>
+
+  <details><summary>A porta USB não aparece</summary>
+    <p>Instale o driver do conversor USB (CP2102 – Silicon Labs, ou CH340). Troque o cabo
+       (alguns cabos são só de carga, sem dados). Reconecte.</p></details>
+
+  <details><summary>WiFi não conecta</summary>
+    <p>Confira nome/senha no <code>secrets.h</code>. O ESP32 só pega redes <b>2.4 GHz</b>
+       (não conecta em 5 GHz). O LED/serial funcionam mesmo sem WiFi.</p></details>
+
+  <details><summary>Twilio retorna erro (HTTP 401 / 21608)</summary>
+    <p>401 = SID/Token errados. 21608 = número de destino não verificado (conta trial só
+       liga para números verificados — refaça o passo D4). Confirme também o formato
+       internacional: <code>+55DDDNÚMERO</code>.</p></details>
+
+  <details><summary>Quero melhorar a detecção com mais vozes</summary>
+    <p>Na pasta <code>modelo/</code>: grave amostras com <code>python src/record_calibration.py socorro 20 normal</code>,
+       depois <code>python pipeline.py treinar</code>. O modelo do <code>esp32/</code> é
+       atualizado sozinho; reenvie o firmware.</p></details>
+</section>
+
+</main>
+
+<footer><div class="wrap">
+  <div>Guia de execução — Detector de “socorro” (ESP32 + FreeRTOS). Para entender por
+     dentro: <a href="docs/RTOS-explicado.md">docs/RTOS-explicado.md</a> ·
+     <a href="esp32/LEIA-ME.md">esp32/LEIA-ME.md</a>.</div>
+  <button class="reset" id="reset">Zerar meu progresso</button>
+</div></footer>
+
+<script>
+  const boxes = [...document.querySelectorAll('.step input')];
+  const bar = document.getElementById('bar'), prog = document.getElementById('prog');
+  const KEY = 'socorro_guia_progresso';
+  const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+  function refresh(){
+    const done = boxes.filter(b=>b.checked).length;
+    bar.style.width = (done/boxes.length*100)+'%';
+    prog.textContent = done+' / '+boxes.length;
+  }
+  boxes.forEach(b=>{
+    b.checked = !!saved[b.dataset.id];
+    b.addEventListener('change',()=>{
+      saved[b.dataset.id]=b.checked;
+      localStorage.setItem(KEY, JSON.stringify(saved));
+      refresh();
+    });
+  });
+  document.getElementById('reset').addEventListener('click',()=>{
+    localStorage.removeItem(KEY); boxes.forEach(b=>b.checked=false); refresh();
+  });
+  refresh();
+</script>
+</body>
+</html>

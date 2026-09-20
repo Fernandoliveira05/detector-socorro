@@ -1,0 +1,37 @@
+# ============================================================================
+#  .gitignore — sobe só o essencial (código + modelo + docs).
+# ============================================================================
+
+# Ambiente e modelos pesados
+_work/
+_models/
+
+# Dados de áudio (privacidade das vozes + tamanho) — em qualquer lugar
+audios/
+*.m4a
+*.mp4
+*.ogg
+*.mpeg
+*.mp3
+*.aiff
+*.wav
+
+# Arquivos soltos não relacionados ao projeto
+*.docx
+*.xlsx
+*.zip
+
+# Dataset e artefatos derivados (regeneráveis pelo pipeline)
+modelo/dataset/
+modelo/metadata/
+modelo/models/historico/
+modelo/models/socorro_savedmodel/
+
+# Credenciais — NUNCA subir
+esp32/secrets.h
+
+# Python / sistema operacional
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
