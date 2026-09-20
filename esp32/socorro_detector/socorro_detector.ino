@@ -15,6 +15,8 @@
 //  Features idênticas ao treino (ver config.h / common.py).
 // ============================================================================
 #include <driver/i2s.h>
+#include "soc/soc.h"           // p/ desligar o detector de brownout
+#include "soc/rtc_cntl_reg.h"
 #include "config.h"
 #include "features.h"
 #include "model_data.h"
@@ -216,6 +218,7 @@ void setupModel() {
 }
 
 void setup() {
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);   // desliga o detector de brownout (contorno p/ fonte no limite)
   Serial.begin(115200);
   pinMode(PIN_LED, OUTPUT); pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_LED_RED, OUTPUT); digitalWrite(PIN_LED_RED, LOW);
