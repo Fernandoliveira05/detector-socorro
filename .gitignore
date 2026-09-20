@@ -28,7 +28,7 @@ modelo/models/historico/
 modelo/models/socorro_savedmodel/
 
 # Credenciais — NUNCA subir
-esp32/secrets.h
+esp32/socorro_detector/secrets.h
 
 # Python / sistema operacional
 __pycache__/

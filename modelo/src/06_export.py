@@ -63,8 +63,8 @@ txt = re.sub(r"unsigned int .*_len", "const unsigned int g_socorro_model_len", t
 h_path.write_text("// Modelo socorro quantizado int8 (gerado)\n#pragma once\n" + txt)
 print("C array salvo:", h_path.name)
 
-# ---------- sincroniza a pasta esp32/ (firmware) ----------
-esp = PROJ.parent / "esp32"
+# ---------- sincroniza a pasta do firmware (Arduino) ----------
+esp = PROJ.parent / "esp32" / "socorro_detector"
 if esp.exists():
     import shutil
     shutil.copy(h_path, esp / "model_data.h")

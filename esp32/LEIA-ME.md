@@ -1,7 +1,9 @@
 # ESP32 — Detector de "Socorro" (o que vai no chip)
 
-Esta pasta tem **tudo que roda no ESP32**. Abra a pasta inteira no Arduino IDE
-(o sketch é `socorro_detector.ino`; os outros arquivos entram junto).
+O código (sketch) fica em **`socorro_detector/`** — abra
+`socorro_detector/socorro_detector.ino` no Arduino IDE e todas as abas aparecem juntas.
+(O Arduino exige que o `.ino` esteja numa pasta com o mesmo nome dele; por isso a subpasta.)
+Os guias `.md` ficam aqui em `esp32/`.
 
 ## O que cada arquivo é
 | Arquivo | Para que serve |
@@ -32,7 +34,7 @@ Siga **[LIGACAO_PROTOBOARD.md](LIGACAO_PROTOBOARD.md)**. Em resumo:
 
 ### 3. Configurar credenciais (para a ligação — Fase 2)
 ```
-copie  secrets_exemplo.h  →  secrets.h   e preencha WiFi + Twilio
+em socorro_detector/ :  copie secrets_exemplo.h → secrets.h  e preencha WiFi + Twilio
 ```
 Como pegar as credenciais Twilio: **[TWILIO_SETUP.md](TWILIO_SETUP.md)**.
 (Se quiser só a Fase 1 — LED vermelho, sem ligação — crie um `secrets.h` com

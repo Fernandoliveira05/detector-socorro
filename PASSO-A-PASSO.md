@@ -5,7 +5,7 @@
 ### Requisitos
 | Requisito | Coberto? | Onde |
 |-----------|:---:|------|
-| Capturar áudio via ESP32 + INMP441 | ✅ | `esp32/socorro_detector.ino` → `CaptureTask` (I2S) |
+| Capturar áudio via ESP32 + INMP441 | ✅ | `esp32/socorro_detector/socorro_detector.ino` → `CaptureTask` (I2S) |
 | Detectar anomalia com modelo pré-treinado | ✅ | `DetectTask` + `model_data.h` (TFLite Micro) |
 | Arquitetura RTOS com **≥ 3 tarefas** sincronizadas | ✅ | **4 tarefas** (captura/features/detecção/alerta) |
 | Medir e documentar latência de cada etapa | ✅ | logs `micros()` no firmware + `docs/relatorio_tecnico.md` |
@@ -53,12 +53,12 @@ Siga **`esp32/LIGACAO_PROTOBOARD.md`**:
 ### Passo 4 — Credenciais (para a ligação Twilio — Fase 2)
 1. Crie conta no Twilio, pegue SID/Token/número, verifique seu celular, crie o
    TwiML Bin. Detalhes em **`esp32/TWILIO_SETUP.md`**.
-2. Copie `esp32/secrets_exemplo.h` → `esp32/secrets.h` e preencha.
+2. Copie `esp32/socorro_detector/secrets_exemplo.h` → `esp32/socorro_detector/secrets.h` e preencha.
    - Só quer a Fase 1 (LED)? Preencha `secrets.h` com valores fictícios — o WiFi
      falha e o LED/buzzer/serial funcionam offline.
 
 ### Passo 5 — Enviar o firmware
-1. Abra a pasta `esp32/` no Arduino IDE (abra `socorro_detector.ino`).
+1. Abra `esp32/socorro_detector/socorro_detector.ino` no Arduino IDE (as abas dos outros arquivos aparecem juntas).
 2. **Upload**. Abra o **Monitor Serial** a **115200**.
 3. Deve aparecer `Conectando WiFi ok` e `Detector de socorro iniciado.`
 

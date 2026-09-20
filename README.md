@@ -40,7 +40,7 @@ Para manter o repo leve e proteger a privacidade das vozes, ficam de fora:
 - `audios/` — as gravações de voz (dados);
 - `modelo/dataset/` e `modelo/metadata/` — dataset e features (derivados, regeneráveis);
 - `_work/`, `_models/` — ambiente Python e modelos do whisper;
-- `esp32/secrets.h` — credenciais (crie a sua a partir de `esp32/secrets_exemplo.h`).
+- `esp32/socorro_detector/secrets.h` — credenciais (crie a sua a partir de `esp32/socorro_detector/secrets_exemplo.h`).
 
 O **modelo treinado** (`modelo/models/socorro.onnx`, `.tflite`, `model_data.h`,
 `feat_norm.npz`) **está incluído**, então o firmware compila sem precisar treinar.
