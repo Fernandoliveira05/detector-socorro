@@ -42,19 +42,37 @@ def reset_norm_cache():
     global _norm
     _norm = None
 
+# ---- tabelas do MFCC no MESMO padrão do firmware (features.cpp) ----
+_hann = (0.5 * (1 - np.cos(2*np.pi*np.arange(WIN_LEN)/WIN_LEN))).astype(np.float32)  # Hann periódica
+def _hz2mel(f): return 2595.0*np.log10(1.0 + f/700.0)
+def _mel2hz(m): return 700.0*(10.0**(m/2595.0) - 1.0)
+_melpts = _mel2hz(_hz2mel(20.0) + (_hz2mel(SR/2)-_hz2mel(20.0))*np.arange(N_MELS+2)/(N_MELS+1))
+_melbin = np.clip(np.floor((N_FFT+1)*_melpts/SR).astype(int), 0, N_FFT//2)
+_MELFB = np.zeros((N_MELS, N_FFT//2 + 1), np.float32)     # triângulos crus (sem norm. Slaney)
+for _m in range(N_MELS):
+    _lo, _mid, _hi = _melbin[_m], _melbin[_m+1], _melbin[_m+2]
+    for _k in range(_lo, _mid):
+        if _mid > _lo: _MELFB[_m, _k] = (_k-_lo)/(_mid-_lo)
+    for _k in range(_mid, _hi):
+        if _hi > _mid: _MELFB[_m, _k] = (_hi-_k)/(_hi-_mid)
+_DCT = np.zeros((N_MFCC, N_MELS), np.float32)             # DCT-II ortonormal
+for _c in range(N_MFCC):
+    _s = np.sqrt(1.0/N_MELS) if _c == 0 else np.sqrt(2.0/N_MELS)
+    _DCT[_c] = _s*np.cos(np.pi*_c*(2*np.arange(N_MELS)+1)/(2*N_MELS))
+
 def _mfcc_raw(y):
-    """MFCC (N_FRAMES x N_MFCC) SEM normalização de estatística. Pico->0.95."""
+    """MFCC (N_FRAMES x N_MFCC) IGUAL ao firmware: pico->0.95, Hann, FFT 512,
+    mel triangular cru, log natural, DCT-II. Sem normalização de estatística."""
     peak = np.max(np.abs(y))
     if peak > 1e-6:
         y = y / peak * 0.95
-    m = librosa.feature.mfcc(
-        y=y, sr=SR, n_mfcc=N_MFCC, n_fft=N_FFT,
-        win_length=WIN_LEN, hop_length=HOP_LEN, n_mels=N_MELS,
-        fmin=20, fmax=SR // 2)
-    m = m[:, :N_FRAMES].T                      # (frames, coef)
-    if m.shape[0] < N_FRAMES:
-        m = np.pad(m, ((0, N_FRAMES - m.shape[0]), (0, 0)))
-    return m.astype(np.float32)
+    frames = np.zeros((N_FRAMES, N_FFT), np.float32)
+    for f in range(N_FRAMES):
+        s = f*HOP_LEN; seg = y[s:s+WIN_LEN]
+        frames[f, :len(seg)] = seg * _hann[:len(seg)]
+    pw = np.abs(np.fft.rfft(frames, axis=1))**2           # (N_FRAMES, 257) potência
+    mel = np.log(pw @ _MELFB.T + 1e-10)                   # (N_FRAMES, 40) log-mel
+    return (mel @ _DCT.T).astype(np.float32)              # (N_FRAMES, 16) MFCC
 
 def mfcc(y, normalize=True):
     """MFCC 1s@16k. Normalização GLOBAL FIXA (média/desvio por-canal do treino):
