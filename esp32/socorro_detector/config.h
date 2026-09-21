@@ -37,6 +37,11 @@
 #define PIN_LED_RED   23             // LED VERMELHO externo (alerta de socorro)
 #define PIN_BUZZER    27             // buzzer (opcional)
 
+// ---- Modo de gravação (domain adaptation) ----
+// 1 = transmite o áudio cru do INMP441 pela serial (921600 baud) p/ gravar e retreinar.
+// 0 = funcionamento normal (detector).
+#define DUMP_AUDIO    0
+
 // ---- Comportamento do alerta ----
 #define ALERT_HOLD_MS   8000         // mantém o alerta ativo por 8 s após detectar
 #define BLINK_MS        250          // período do piscar do LED vermelho

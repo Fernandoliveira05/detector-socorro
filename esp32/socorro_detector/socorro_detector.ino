@@ -239,6 +239,20 @@ void setupModel() {
 void setup() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);   // desliga o detector de brownout (contorno p/ fonte no limite)
   Serial.begin(115200);
+
+#if DUMP_AUDIO
+  // MODO GRAVAÇÃO: transmite o áudio cru do INMP441 (int16, 16kHz) pela serial.
+  Serial.begin(921600);
+  setupI2S();
+  static int32_t raw[256]; static int16_t buf[256]; size_t nb;
+  while (true) {
+    i2s_read(I2S_PORT, raw, sizeof(raw), &nb, portMAX_DELAY);
+    int got = nb / sizeof(int32_t);
+    for (int i = 0; i < got; i++) buf[i] = (int16_t)(raw[i] >> 16);
+    Serial.write((uint8_t*)buf, got * sizeof(int16_t));
+  }
+#endif
+
   pinMode(PIN_LED, OUTPUT); pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_LED_RED, OUTPUT); digitalWrite(PIN_LED_RED, LOW);
   features_init();
