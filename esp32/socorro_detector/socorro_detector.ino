@@ -42,7 +42,7 @@ static volatile uint32_t alertUntil = 0;      // millis até quando o alerta fic
 static volatile float    lastProb = 0.0f;
 
 // ---------------- TFLite Micro ----------------
-constexpr int kArenaSize = 26 * 1024;   // modelo pequeno; aumente se "AllocateTensors failed"
+constexpr int kArenaSize = 28 * 1024;   // o modelo pede ~25 KB; 28 KB dá margem
 static uint8_t tensor_arena[kArenaSize];
 static tflite::MicroInterpreter* interpreter = nullptr;
 static TfLiteTensor* input = nullptr;
@@ -52,11 +52,11 @@ static TfLiteTensor* output = nullptr;
 // T1 — Captura de áudio (alta prioridade): I2S -> buffer circular
 // ============================================================================
 void CaptureTask(void* arg) {
-  const int N = STEP_SAMPLES;                    // lê em blocos de ~62 ms
-  static int32_t raw[STEP_SAMPLES];
-  size_t nbytes;
+  const int CHUNK = 256;                         // lê o I2S em blocos pequenos (economia de RAM)
+  static int32_t raw[256];
+  size_t nbytes; int acc = 0;
   while (true) {
-    i2s_read(I2S_PORT, raw, N * sizeof(int32_t), &nbytes, portMAX_DELAY);
+    i2s_read(I2S_PORT, raw, CHUNK * sizeof(int32_t), &nbytes, portMAX_DELAY);
     int got = nbytes / sizeof(int32_t);
     xSemaphoreTake(ringMutex, portMAX_DELAY);
     for (int i = 0; i < got; i++) {
@@ -65,7 +65,8 @@ void CaptureTask(void* arg) {
       writeIdx = (writeIdx + 1) % RING_LEN;
     }
     xSemaphoreGive(ringMutex);
-    xSemaphoreGive(blockSem);                    // avisa T2 que há bloco novo
+    acc += got;                                  // avisa T2 a cada STEP_SAMPLES (~62 ms)
+    if (acc >= STEP_SAMPLES) { acc = 0; xSemaphoreGive(blockSem); }
   }
 }
 

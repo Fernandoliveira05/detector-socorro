@@ -17,8 +17,8 @@
 #define FMAX          8000.0f        // SR/2
 
 // ---- Decisão (config "congelada", ver metrics.json) ----
-#define THRESHOLD     0.85f          // limiar de probabilidade de socorro
-#define CONSEC        3              // janelas seguidas acima do limiar p/ alertar
+#define THRESHOLD     0.55f          // limiar (config congelada validada no PC)
+#define CONSEC        6              // ~375 ms sustentados (6 janelas de ~62 ms)
 #define RMS_GATE      0.005f         // abaixo disso = fundo/silêncio (não classifica)
 #define STEP_SAMPLES  1000           // ~62 ms: passo da janela deslizante (amostragem densa)
 
