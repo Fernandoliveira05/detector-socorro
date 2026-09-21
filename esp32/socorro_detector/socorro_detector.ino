@@ -277,7 +277,7 @@ void setup() {
   xTaskCreatePinnedToCore(CaptureTask, "capture", 4096, NULL, 5, NULL, 0);
   xTaskCreatePinnedToCore(FeatureTask, "feature", 8192, NULL, 3, NULL, 1);
   xTaskCreatePinnedToCore(DetectTask,  "detect",  8192, NULL, 2, NULL, 0);
-  xTaskCreatePinnedToCore(AlertTask,   "alert",   4096, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(AlertTask,   "alert",   16384, NULL, 1, NULL, 0);  // stack grande: TLS/HTTPS precisa
   Serial.println("Detector de socorro iniciado.");
 }
 

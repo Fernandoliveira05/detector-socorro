@@ -19,6 +19,8 @@ void wifiSetup() {
 // POST autenticado na API do Twilio (Calls.json ou Messages.json).
 static void twilioPost(const String& endpoint, const String& body) {
   if (WiFi.status() != WL_CONNECTED) { Serial.println("[Twilio] sem WiFi"); return; }
+  Serial.printf("[Twilio] heap livre=%u  maior bloco=%u\n",
+                ESP.getFreeHeap(), ESP.getMaxAllocHeap());
   WiFiClientSecure client; client.setInsecure();     // demo: pula validação de cert
   HTTPClient http;
   http.begin(client, "https://api.twilio.com/2010-04-01/Accounts/" + String(TWILIO_SID) + endpoint);
