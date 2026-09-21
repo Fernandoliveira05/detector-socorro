@@ -15,15 +15,22 @@ nome = sys.argv[1] if len(sys.argv) > 1 else "captura"
 dur  = float(sys.argv[2]) if len(sys.argv) > 2 else 15.0
 out = Path(__file__).resolve().parents[2] / "_work" / "inmp441"; out.mkdir(parents=True, exist_ok=True)
 
+WARMUP = 3.0                                        # descarta o transiente inicial do INMP441 (DC settling)
 port = (glob.glob("/dev/cu.usbserial*") + glob.glob("/dev/cu.usbmodem*"))[0]
 ser = serial.Serial(port, 921600, timeout=0.2)
 time.sleep(1.5); ser.reset_input_buffer()          # descarta lixo do boot
+print(f"Aquecendo o mic ({WARMUP:.0f}s, NÃO fale ainda)...")
+tw = time.time()
+while time.time() - tw < WARMUP:                    # lê e joga fora o começo (estoura no início)
+    ser.read(4096)
+ser.reset_input_buffer()
 print(f"Gravando {dur:.0f}s de '{nome}' — FALE AGORA...")
 buf = bytearray(); t0 = time.time()
 while time.time() - t0 < dur:
     buf += ser.read(4096)
 ser.close()
 y = np.frombuffer(bytes(buf[: len(buf)//2*2]), dtype='<i2').astype(np.float32) / 32768.0
+y = y[int(0.3*SR):]                                 # trim extra de 0.3s por segurança
 got = len(y) / SR
 if got < dur * 0.5:                                  # veio muito menos áudio que o pedido
     print(f"⚠️  ATENÇÃO: só chegaram {got:.1f}s de {dur:.0f}s pedidos.")

@@ -17,7 +17,7 @@
 #define FMAX          8000.0f        // SR/2
 
 // ---- Decisão (config "congelada", ver metrics.json) ----
-#define THRESHOLD     0.55f          // limiar (config congelada validada no PC)
+#define THRESHOLD     0.80f          // limiar validado no INMP441: 9/9 socorro, 0/5 falso-positivo
 #define CONSEC        3              // ~375 ms sustentados (3 janelas de ~125 ms)
 #define RMS_GATE      0.005f         // abaixo disso = fundo/silêncio (não classifica)
 #define STEP_SAMPLES  2000           // ~125 ms: passo da janela (MFCC leva ~67ms, dá folga de CPU)

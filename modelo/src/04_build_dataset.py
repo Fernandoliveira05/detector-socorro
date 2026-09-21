@@ -25,7 +25,7 @@ def list_files():
     neg = []
     for sub in ["from_recordings", "pt_speech", "noise", "other_words",
                 "loud_speech", "mic_user", "pc_neg", "mic_noise", "conversation",
-                "inmp_noise"]:
+                "inmp_speech"]:
         neg += sorted((DS / "negatives" / sub).glob("*.wav"))
     return pos, neg
 
