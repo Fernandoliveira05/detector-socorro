@@ -137,6 +137,7 @@ void DetectTask(void* arg) {
     uint32_t dt = micros() - t0;
     static uint32_t maxInf = 0;
     if (dt > maxInf) { maxInf = dt; Serial.printf("[T3] inferencia latencia max: %u us\n", dt); }
+    vTaskDelay(pdMS_TO_TICKS(5));   // cede a CPU (alimenta o watchdog do núcleo 0)
   }
 }
 
