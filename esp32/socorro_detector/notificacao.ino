@@ -21,13 +21,19 @@ static void twilioPost(const String& endpoint, const String& body) {
   if (WiFi.status() != WL_CONNECTED) { Serial.println("[Twilio] sem WiFi"); return; }
   Serial.printf("[Twilio] heap livre=%u  maior bloco=%u\n",
                 ESP.getFreeHeap(), ESP.getMaxAllocHeap());
-  WiFiClientSecure client; client.setInsecure();     // demo: pula validação de cert
+  WiFiClientSecure client;
+  client.setInsecure();                 // demo: pula validação de cert
+  client.setHandshakeTimeout(30);       // s: dá tempo pro TLS da Twilio
   HTTPClient http;
+  http.setConnectTimeout(20000);        // ms: TCP+TLS connect
+  http.setTimeout(20000);               // ms: resposta
   http.begin(client, "https://api.twilio.com/2010-04-01/Accounts/" + String(TWILIO_SID) + endpoint);
   http.setAuthorization(TWILIO_SID, TWILIO_TOKEN);   // login = SID, senha = token
   http.addHeader("Content-Type", "application/x-www-form-urlencoded");
   int code = http.POST(body);
-  Serial.printf("[Twilio] %s -> HTTP %d\n", endpoint.c_str(), code);
+  Serial.printf("[Twilio] %s -> HTTP %d (%s)\n",
+                endpoint.c_str(), code, http.errorToString(code).c_str());
+  if (code > 0) { String r = http.getString(); Serial.printf("[Twilio] resp: %s\n", r.substring(0, 200).c_str()); }
   http.end();
 }
 
