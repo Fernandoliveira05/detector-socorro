@@ -241,10 +241,12 @@ void setup() {
   featQueue = xQueueCreate(4, sizeof(Feature));
 
   // prioridades: captura > features > detecção (como pede o enunciado)
+  // núcleo 1 = só a extração de features (MFCC pesado, roda sozinho)
+  // núcleo 0 = captura (leve, bloqueia no I2S) + detecção + alerta
   xTaskCreatePinnedToCore(CaptureTask, "capture", 4096, NULL, 5, NULL, 0);
   xTaskCreatePinnedToCore(FeatureTask, "feature", 8192, NULL, 3, NULL, 1);
-  xTaskCreatePinnedToCore(DetectTask,  "detect",  8192, NULL, 2, NULL, 1);
-  xTaskCreatePinnedToCore(AlertTask,   "alert",   4096, NULL, 1, NULL, 1);
+  xTaskCreatePinnedToCore(DetectTask,  "detect",  8192, NULL, 2, NULL, 0);
+  xTaskCreatePinnedToCore(AlertTask,   "alert",   4096, NULL, 1, NULL, 0);
   Serial.println("Detector de socorro iniciado.");
 }
 

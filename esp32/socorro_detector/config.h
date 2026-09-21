@@ -18,9 +18,9 @@
 
 // ---- Decisão (config "congelada", ver metrics.json) ----
 #define THRESHOLD     0.55f          // limiar (config congelada validada no PC)
-#define CONSEC        6              // ~375 ms sustentados (6 janelas de ~62 ms)
+#define CONSEC        3              // ~375 ms sustentados (3 janelas de ~125 ms)
 #define RMS_GATE      0.005f         // abaixo disso = fundo/silêncio (não classifica)
-#define STEP_SAMPLES  1000           // ~62 ms: passo da janela deslizante (amostragem densa)
+#define STEP_SAMPLES  2000           // ~125 ms: passo da janela (MFCC leva ~67ms, dá folga de CPU)
 
 // ---- Buffer circular ----
 // int16 + folga mínima segura (a leitura da janela leva ~30ms; 512 amostras = 32ms)
