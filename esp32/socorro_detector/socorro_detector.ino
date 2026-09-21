@@ -87,7 +87,12 @@ void FeatureTask(void* arg) {
     // esta janela depois de ~1 s, e o MFCC leva ~30 ms -> seguro sem cópia)
 
     // gate de energia (feature RMS do enunciado): pula fundo/silêncio
-    if (compute_rms(ring, end) < RMS_GATE) continue;
+    float rms = compute_rms(ring, end);
+    // DEBUG: pico de RMS a cada 2s (pra ver se o mic responde ao som)
+    static float dbgRms = 0; static uint32_t dbgRt = 0;
+    if (rms > dbgRms) dbgRms = rms;
+    if (millis() - dbgRt > 2000) { dbgRt = millis(); Serial.printf("[debug] rms_max(2s)=%.4f\n", dbgRms); dbgRms = 0; }
+    if (rms < RMS_GATE) continue;
 
     compute_mfcc(ring, end, feat.mfcc);
     feat.t_capture_us = t0;
