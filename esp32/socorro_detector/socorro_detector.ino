@@ -122,6 +122,10 @@ void DetectTask(void* arg) {
     float p = (output->data.int8[1] - output->params.zero_point) * output->params.scale;
 
     uint32_t now = millis();
+    // DEBUG: pico de p a cada 3s (pra ver até onde a probabilidade sobe)
+    static float dbgMax = 0; static uint32_t dbgT = 0;
+    if (p > dbgMax) dbgMax = p;
+    if (now - dbgT > 3000) { dbgT = now; Serial.printf("[debug] p_max(3s)=%.2f\n", dbgMax); dbgMax = 0; }
     consec = (p >= THRESHOLD) ? consec + 1 : 0;
     if (consec >= CONSEC && (now - lastAlert) > 1500) {
       lastAlert = now; consec = 0;
