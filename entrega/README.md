@@ -73,6 +73,15 @@ cd treino
 python demo_mic.py          # grite "socorro" e veja a barra subir
 ```
 
+**Código de teste (simula anomalias e mede performance):**
+```bash
+cd treino
+python testar.py            # mede a latência de inferência (sem áudio)
+python testar.py ../audios  # + acurácia: roda o modelo em socorro vs não-socorro
+```
+Ele reporta **latência** (ms por inferência) e, apontando para a pasta de áudios
+(subpastas `socorro/` e `nao_socorro/`), a **precisão, recall e acurácia**.
+
 **No ESP32 (firmware):** abra `firmware/socorro_detector/socorro_detector.ino` no
 Arduino IDE (placa *ESP32 Dev Module* + biblioteca *TensorFlow Lite Micro*), copie
 `secrets_exemplo.h` → `secrets.h`, e envie. As ligações da protoboard estão em
@@ -92,7 +101,7 @@ emergência em [`docs/twilio.md`](docs/twilio.md).
 | Modelo `.onnx` | `treino/modelos/socorro.onnx` |
 | Diagrama de tarefas RTOS | `docs/diagrama_rtos.svg` |
 | Relatório técnico | `docs/relatorio_tecnico.md` |
-| Código de teste | `treino/demo_mic.py` |
+| Código de teste (simula + mede performance) | `treino/testar.py` |
 
 ## Links
 
