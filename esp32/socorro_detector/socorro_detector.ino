@@ -58,6 +58,10 @@ void CaptureTask(void* arg) {
   while (true) {
     i2s_read(I2S_PORT, raw, CHUNK * sizeof(int32_t), &nbytes, portMAX_DELAY);
     int got = nbytes / sizeof(int32_t);
+    // DEBUG: mostra 4 amostras brutas do I2S a cada 2s (pra ver o padrão dos bits)
+    static uint32_t dbgC = 0;
+    if (millis() - dbgC > 2000) { dbgC = millis();
+      Serial.printf("[raw] %08x %08x %08x %08x\n", raw[0], raw[1], raw[2], raw[3]); }
     xSemaphoreTake(ringMutex, portMAX_DELAY);
     for (int i = 0; i < got; i++) {
       // INMP441: amostra de 24 bits alinhada ao topo de 32 bits -> pega os 16 bits altos
