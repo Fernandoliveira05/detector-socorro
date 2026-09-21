@@ -64,8 +64,11 @@ void CaptureTask(void* arg) {
       Serial.printf("[raw] %08x %08x %08x %08x\n", raw[0], raw[1], raw[2], raw[3]); }
     xSemaphoreTake(ringMutex, portMAX_DELAY);
     for (int i = 0; i < got; i++) {
-      // INMP441: amostra de 24 bits alinhada ao topo de 32 bits -> pega os 16 bits altos
-      ring[writeIdx] = (int16_t)(raw[i] >> 16);
+      // INMP441: amostra de 24 bits no topo dos 32 bits. Atenua (GAIN_SHIFT) p/ ter
+      // headroom e LIMITA (clamp) em vez de deixar o int16 "virar" (overflow) e estourar.
+      int32_t s = raw[i] >> GAIN_SHIFT;
+      if (s > 32767) s = 32767; else if (s < -32768) s = -32768;
+      ring[writeIdx] = (int16_t)s;
       writeIdx = (writeIdx + 1) % RING_LEN;
     }
     xSemaphoreGive(ringMutex);
@@ -248,7 +251,11 @@ void setup() {
   while (true) {
     i2s_read(I2S_PORT, raw, sizeof(raw), &nb, portMAX_DELAY);
     int got = nb / sizeof(int32_t);
-    for (int i = 0; i < got; i++) buf[i] = (int16_t)(raw[i] >> 16);
+    for (int i = 0; i < got; i++) {
+      int32_t s = raw[i] >> GAIN_SHIFT;
+      if (s > 32767) s = 32767; else if (s < -32768) s = -32768;
+      buf[i] = (int16_t)s;
+    }
     Serial.write((uint8_t*)buf, got * sizeof(int16_t));
   }
 #endif

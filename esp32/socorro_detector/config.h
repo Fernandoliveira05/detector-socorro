@@ -37,6 +37,11 @@
 #define PIN_LED_RED   23             // LED VERMELHO externo (alerta de socorro)
 #define PIN_BUZZER    27             // buzzer (opcional)
 
+// ---- Ganho de entrada do INMP441 ----
+// Pega os bits altos do sample de 24 bits. Quanto MAIOR o shift, MENOS volume
+// (mais headroom, menos estouro). 16 = padrão; suba (18, 19, 20) se estourar.
+#define GAIN_SHIFT    18
+
 // ---- Modo de gravação (domain adaptation) ----
 // 1 = transmite o áudio cru do INMP441 pela serial (921600 baud) p/ gravar e retreinar.
 // 0 = funcionamento normal (detector).

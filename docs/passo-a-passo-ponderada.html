@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Passo a passo — Detector de "socorro" no ESP32</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161a22; --panel2:#1b212c; --ink:#e7ecf3; --mut:#9aa7b8;
+    --line:#28303d; --accent:#ff5a5f; --accent2:#4dd4ac; --code:#0c0e13; --codeink:#d6e2f0;
+    --th:#202836;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:0 22px 90px}
+  header.hero{
+    max-width:900px; margin:0 auto; padding:56px 22px 34px;
+  }
+  .kicker{color:var(--accent); font-weight:700; letter-spacing:.14em; text-transform:uppercase; font-size:12.5px}
+  h1{font-size:34px; line-height:1.15; margin:.35em 0 .2em; letter-spacing:-.01em}
+  .sub{color:var(--mut); font-size:17px; max-width:70ch; margin:0}
+  .flow{
+    margin:26px 0 6px; padding:16px 18px; background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color:var(--codeink); font-size:14px; overflow-x:auto; white-space:pre;
+  }
+  h2{font-size:23px; margin:52px 0 4px; letter-spacing:-.01em; scroll-margin-top:16px}
+  h2 .n{color:var(--accent); font-variant-numeric:tabular-nums; margin-right:.5ch}
+  h3{font-size:17.5px; margin:28px 0 6px; color:#f2f5f9}
+  p{margin:12px 0}
+  a{color:var(--accent2)}
+  strong{color:#fff}
+  hr{border:0; border-top:1px solid var(--line); margin:40px 0}
+  ul,ol{margin:12px 0; padding-left:22px}
+  li{margin:6px 0}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.9em;
+    background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:.08em .4em; color:#ffd9da;
+  }
+  pre{
+    background:var(--code); border:1px solid var(--line); border-radius:12px; padding:16px 18px;
+    overflow-x:auto; margin:16px 0;
+  }
+  pre code{background:none; border:0; padding:0; color:var(--codeink); font-size:13.5px; line-height:1.55}
+  table{border-collapse:collapse; width:100%; margin:16px 0; font-size:14.5px; overflow:hidden; border-radius:10px}
+  th,td{border:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top}
+  th{background:var(--th); color:#fff; font-weight:600}
+  tr:nth-child(even) td{background:var(--panel)}
+  blockquote{
+    margin:16px 0; padding:12px 16px; background:rgba(77,212,172,.08);
+    border-left:3px solid var(--accent2); border-radius:0 8px 8px 0; color:#d7e7e0;
+  }
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:4px 18px; margin:16px 0}
+  .toc{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 20px; margin:8px 0 8px;
+  }
+  .toc b{font-size:12.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--mut)}
+  .toc ol{columns:2; column-gap:34px; margin:10px 0 4px}
+  .toc a{color:var(--ink); text-decoration:none}
+  .toc a:hover{color:var(--accent2)}
+  .badges{display:flex; gap:10px; flex-wrap:wrap; margin:20px 0 0}
+  .badge{background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-size:13px; color:var(--mut)}
+  .badge b{color:var(--accent2)}
+  .foot{color:var(--mut); font-size:13.5px; text-align:center; margin-top:56px}
+  @media (max-width:640px){ .toc ol{columns:1} h1{font-size:27px} }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="kicker">🆘 Ponderada · Sistemas Embarcados + Edge ML</div>
+  <h1>Passo a passo — Detector de "socorro" no ESP32</h1>
+  <p class="sub">Guia pra <strong>eu explicar</strong> o projeto. Dois focos fortes: <strong>RTOS / concorrência</strong> e <strong>o modelo</strong>. Tudo roda <strong>na borda</strong> — o áudio nunca sai do dispositivo, só o <em>evento</em> de alerta.</p>
+  <div class="badges">
+    <span class="badge">RTOS: <b>4 tarefas</b> sincronizadas</span>
+    <span class="badge">Modelo: <b>CNN int8 ~30 KB</b></span>
+    <span class="badge">INMP441: <b>p = 0,99–1,00</b></span>
+    <span class="badge">Falso-positivo: <b>0%</b></span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc">
+    <b>Índice</b>
+    <ol>
+      <li><a href="#s0">A ideia em uma frase</a></li>
+      <li><a href="#s1">Visão geral do fluxo</a></li>
+      <li><a href="#s2">RTOS e concorrência</a></li>
+      <li><a href="#s3">O modelo</a></li>
+      <li><a href="#s4">Alerta e notificação</a></li>
+      <li><a href="#s5">Checklist do enunciado</a></li>
+      <li><a href="#s6">Perguntas da banca</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="s0"><span class="n">0.</span>A ideia em uma frase</h2>
+  <p>Um <strong>ESP32 + microfone INMP441</strong> que escuta o ambiente em tempo real, reconhece a palavra <strong>"socorro"</strong> com uma rede neural embarcada, e ao detectar <strong>acende um LED vermelho, toca o buzzer e liga para a emergência (Twilio)</strong> — coordenando tudo com <strong>FreeRTOS</strong> em 4 tarefas paralelas.</p>
+  <div class="flow">🎙 Ouvir  ──►  🔢 Resumir  ──►  🧠 Decidir  ──►  🚨 Alertar
+ I2S/mic       MFCC 49×16      CNN int8 (TFLM)   LED + buzzer + ligação</div>
+
+  <hr>
+
+  <h2 id="s1"><span class="n">1.</span>Visão geral do fluxo (o que fizemos, em ordem)</h2>
+  <ol>
+    <li><strong>Coletamos áudio</strong> de "socorro" (meu e de amigos) em vários tons/volumes + uma montanha de <strong>negativos</strong> (ruído, conversa, palavras parecidas).</li>
+    <li><strong>Extraímos features (MFCC)</strong> de cada clipe de 1 s — a "impressão digital" sonora.</li>
+    <li><strong>Treinamos uma CNN pequena</strong> para dizer <em>socorro</em> vs <em>não-socorro</em>.</li>
+    <li><strong>Quantizamos para int8 e exportamos</strong> um array C (~30 KB) que cabe no ESP32.</li>
+    <li><strong>Escrevemos o firmware</strong> com <strong>4 tarefas FreeRTOS</strong> sincronizadas (captura → features → detecção → alerta).</li>
+    <li><strong>Garantimos paridade de features</strong>: o MFCC em C (no chip) dá o mesmo resultado do MFCC em Python (no treino).</li>
+    <li><strong>Domain adaptation</strong>: gravamos o que o <strong>próprio INMP441</strong> escuta e retreinamos — porque o mic do chip "soa" diferente dos mics em que o modelo aprendeu.</li>
+    <li><strong>Medimos latência</strong> de cada etapa e disparamos o <strong>alerta + ligação</strong>.</li>
+  </ol>
+
+  <hr>
+
+  <h2 id="s2"><span class="n">2.</span>RTOS e concorrência <span style="color:var(--mut);font-size:15px;font-weight:400">(o coração da ponderada)</span></h2>
+
+  <h3>2.1 Por que precisamos de RTOS aqui</h3>
+  <p>As etapas têm <strong>ritmos e prioridades diferentes</strong> e acontecem <strong>ao mesmo tempo</strong>:</p>
+  <ul>
+    <li>A <strong>captura</strong> não pode parar nunca (se parar, perdemos amostras → buracos no som).</li>
+    <li>A <strong>extração de MFCC</strong> é pesada (~dezenas de ms de CPU).</li>
+    <li>A <strong>inferência</strong> roda quando há features novas.</li>
+    <li>O <strong>alerta</strong> (LED, buzzer, ligação) não pode travar as outras.</li>
+  </ul>
+  <p>Num <code>loop()</code> sequencial, o MFCC ou a ligação <strong>bloqueariam</strong> a captura e o áudio ficaria cheio de falhas. O RTOS resolve com <strong>tarefas concorrentes, prioridades e preempção</strong>, usando os <strong>dois núcleos</strong> do ESP32.</p>
+
+  <h3>2.2 As 4 tarefas</h3>
+  <table>
+    <thead><tr><th>Tarefa</th><th>Prioridade</th><th>Núcleo</th><th>O que faz</th></tr></thead>
+    <tbody>
+      <tr><td><strong>T1 · CaptureTask</strong></td><td>5 (alta)</td><td>0</td><td>Lê o I2S em blocos de 256 amostras e escreve no <strong>buffer circular</strong>.</td></tr>
+      <tr><td><strong>T2 · FeatureTask</strong></td><td>3 (média)</td><td>1</td><td>A cada ~125 ms, pega 1 s do buffer, calcula <strong>RMS + MFCC</strong> e põe na <strong>fila</strong>.</td></tr>
+      <tr><td><strong>T3 · DetectTask</strong></td><td>2 (baixa)</td><td>0</td><td>Tira features da fila, roda o <strong>modelo int8</strong>, aplica <strong>threshold + debounce</strong>.</td></tr>
+      <tr><td><strong>T4 · AlertTask</strong></td><td>1 (+ baixa)</td><td>0</td><td>Enquanto o alerta está ativo: pisca LED, toca buzzer e <strong>liga pra polícia</strong>.</td></tr>
+    </tbody>
+  </table>
+  <blockquote>O enunciado pede <strong>≥ 3 tarefas sincronizadas</strong> — temos <strong>4</strong>.</blockquote>
+  <p><strong>Prioridades:</strong> captura é a mais alta porque tem <em>deadline</em> rígido (o hardware I2S entrega amostras num ritmo fixo; se não lermos, o buffer DMA transborda). Detecção e alerta são mais baixas porque toleram atraso de alguns ms.</p>
+  <p><strong>Preempção:</strong> se a T2 está no meio de um MFCC e chega áudio novo, o escalonador <strong>interrompe</strong> a T2 pra rodar a T1 (mais prioritária) e depois volta. É isso que garante que a captura nunca "perde a hora".</p>
+
+  <h3>2.3 Os 3 mecanismos de sincronização</h3>
+  <div class="card">
+    <p><strong>a) <code>ringMutex</code> (mutex) — protege o buffer circular</strong></p>
+    <ul>
+      <li>T1 <strong>escreve</strong> no <code>ring[]</code> e T2 <strong>lê</strong>. Sem proteção, T2 leria enquanto T1 escreve o mesmo índice → dado corrompido (<em>race condition</em>).</li>
+      <li>O mutex garante <strong>exclusão mútua</strong>: enquanto um mexe no <code>writeIdx</code>, o outro espera.</li>
+      <li>A seção crítica é <strong>curtíssima</strong> (só o índice) — não seguramos o mutex durante o MFCC inteiro, senão a captura travaria.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <p><strong>b) <code>blockSem</code> (semáforo binário) — sinaliza "tem áudio novo"</strong></p>
+    <ul>
+      <li>A T1 dá <code>xSemaphoreGive(blockSem)</code> a cada <code>STEP_SAMPLES</code> (~125 ms).</li>
+      <li>A T2 fica <strong>bloqueada</strong> em <code>xSemaphoreTake</code> sem gastar CPU até haver bloco novo.</li>
+      <li><strong>Produtor–consumidor</strong>: a T2 só acorda quando faz sentido, em vez de ficar em <em>polling</em> desperdiçando CPU.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <p><strong>c) <code>featQueue</code> (fila) — passa as features de T2 → T3</strong></p>
+    <ul>
+      <li>A T2 empacota o vetor MFCC (49×16) num <code>Feature</code> e faz <code>xQueueSend</code>; a T3 faz <code>xQueueReceive</code>.</li>
+      <li>A fila <strong>desacopla</strong> as duas: se a inferência atrasa, as features enfileiram (profundidade 4) em vez de se perderem.</li>
+      <li>Se a fila enche, descartamos a mais nova (tempo real: melhor perder um frame do que acumular atraso).</li>
+    </ul>
+  </div>
+  <div class="card">
+    <p><strong>d) <code>alertUntil</code> / <code>lastProb</code> (estado T3 → T4)</strong></p>
+    <ul>
+      <li>A T3 só marca "alerta ativo até o instante X". A T4 lê e cuida do LED/buzzer/ligação.</li>
+      <li>Assim a <strong>detecção não fica presa</strong> esperando o buzzer tocar ou a ligação completar.</li>
+    </ul>
+  </div>
+
+  <h3>2.4 Uso dos dois núcleos (dual-core)</h3>
+  <ul>
+    <li><strong>Núcleo 1:</strong> só a <strong>FeatureTask</strong> (o MFCC é o trabalho mais pesado — roda sozinho, sem disputar CPU).</li>
+    <li><strong>Núcleo 0:</strong> <strong>Captura + Detecção + Alerta</strong> (tarefas leves ou que bloqueiam esperando I/O).</li>
+  </ul>
+  <p>Isso equilibra a carga: o MFCC pesado não atrapalha a captura e vice-versa.</p>
+
+  <h3>2.5 O bug de concorrência que resolvemos <span style="color:var(--mut);font-size:14px">(bom pra contar)</span></h3>
+  <p>No começo a <strong>DetectTask monopolizava o núcleo 0</strong> e o <strong>watchdog</strong> reiniciava o chip (<code>task_wdt: IDLE0</code>). Duas correções:</p>
+  <ol>
+    <li><code>vTaskDelay(pdMS_TO_TICKS(5))</code> no fim da T3 → ela <strong>cede a CPU</strong> (alimenta o watchdog).</li>
+    <li>Reorganizamos os núcleos (MFCC sozinho no núcleo 1).</li>
+  </ol>
+  <p>Exemplo real de <strong>starvation</strong> (tarefa faminta impedindo as outras) e de como o RTOS exige <em>ceder a CPU</em> quando não há bloqueio natural.</p>
+
+  <h3>2.6 Latência (o enunciado pede medir cada etapa)</h3>
+  <p>Medimos com <code>micros()</code> dentro das tarefas e imprimimos no Serial:</p>
+  <ul>
+    <li><strong>T2:</strong> latência do MFCC (<code>[T2] MFCC latencia max</code>).</li>
+    <li><strong>T3:</strong> latência da inferência (<code>[T3] inferencia latencia max</code>).</li>
+    <li><strong>Ponta-a-ponta:</strong> da captura até disparar o alerta, via o timestamp <code>t_capture_us</code> que viaja junto na fila.</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="s3"><span class="n">3.</span>O modelo <span style="color:var(--mut);font-size:15px;font-weight:400">(pega firme aqui)</span></h2>
+
+  <h3>3.1 O problema de ML</h3>
+  <p>É <strong>keyword spotting</strong>: classificação binária de janelas de <strong>1 segundo</strong> em <em>socorro</em> (1) vs <em>não-socorro</em> (0). O desafio real <strong>não</strong> é acertar o meu "socorro" — é:</p>
+  <ul>
+    <li><strong>generalizar</strong> para vozes, tons (grito/normal/sussurro) e volumes diferentes;</li>
+    <li><strong>não disparar</strong> com barulho, conversa ou palavras parecidas ("corro", "socorrista", "controle");</li>
+    <li><strong>caber e rodar em tempo real</strong> num microcontrolador.</li>
+  </ul>
+
+  <h3>3.2 Features: por que MFCC (e não a onda crua)</h3>
+  <p>A onda tem 16.000 números por segundo — caro e sem estrutura pra uma rede pequena. Os <strong>MFCC</strong> resumem <em>como a energia se distribui nas frequências</em> de um jeito parecido com a audição humana. Pipeline (idêntico no treino Python e no firmware C):</p>
+  <table>
+    <thead><tr><th>Parâmetro</th><th>Valor</th><th>Sentido</th></tr></thead>
+    <tbody>
+      <tr><td>Janela</td><td>30 ms (480 amostras)</td><td>trecho curto ~estacionário</td></tr>
+      <tr><td>Passo (hop)</td><td>20 ms (320 amostras)</td><td>sobreposição entre frames</td></tr>
+      <tr><td>FFT</td><td>512 pontos</td><td>espectro do frame</td></tr>
+      <tr><td>Filtros mel</td><td>40</td><td>agrupa frequências como o ouvido</td></tr>
+      <tr><td>Coef. MFCC</td><td>16</td><td>resumo compacto</td></tr>
+      <tr><td>Frames</td><td>49</td><td>1 + (16000−480)/320</td></tr>
+    </tbody>
+  </table>
+  <p>Resultado: uma "imagem" <strong>49 × 16</strong> que entra na CNN. Ainda aplicamos <strong>normalização de pico (0.95)</strong> por clipe (robustez a volume), <strong>log natural</strong> da energia mel, <strong>DCT-II ortonormal</strong> e <strong>normalização global fixa</strong> (média/desvio só do treino) → probabilidades <strong>estáveis</strong>.</p>
+
+  <h3>3.3 Paridade Python ↔ C</h3>
+  <p>O treino é em Python (<code>librosa</code>) e o chip roda C (<code>features.cpp</code>, FFT feita à mão). Se os MFCC não baterem, o modelo vê "outra coisa" no chip. Então <strong>reescrevemos o MFCC em Python pra replicar exatamente o C</strong> e <strong>provamos numericamente</strong> que batem: diferença máxima ~<strong>0.0003</strong>. Por isso o que funciona no PC funciona no chip.</p>
+
+  <h3>3.4 A rede (CNN pequena)</h3>
+  <pre><code>Entrada  49 × 16 × 1  (MFCC)
+ → Conv2D(16, 3×3) + BatchNorm + MaxPool
+ → Conv2D(32, 3×3) + BatchNorm + MaxPool
+ → Conv2D(48, 3×3) + BatchNorm
+ → GlobalAveragePooling2D            (resume o mapa inteiro num vetor)
+ → Dense(48, relu) + Dropout(0.3)
+ → Dense(2, softmax)                 (prob de [não-socorro, socorro])</code></pre>
+  <ul>
+    <li><strong>Convoluções</strong> capturam padrões tempo-frequência (a "assinatura" do socorro) independentemente de <em>onde</em> na janela ele aparece.</li>
+    <li><strong>GlobalAveragePooling</strong> em vez de Flatten → <strong>muito menos parâmetros</strong> (essencial pra caber) e menos overfitting.</li>
+    <li><strong>Dropout 0.3 + L2 + label smoothing 0.1</strong> → regularização, evita decorar as vozes do treino.</li>
+    <li>Treino: Adam (1e-3), 80 épocas com <strong>EarlyStopping</strong> (paciência 12) na <em>val_loss</em>.</li>
+  </ul>
+
+  <h3>3.5 Dados: onde mora a real dificuldade</h3>
+  <p>Hoje: <strong>~516 positivos</strong> e <strong>~1.670 negativos</strong> em várias categorias — positivos em grito/normal/sussurro (meus e de amigos); negativos de ruído, silêncio, conversa, <strong>fala alta genérica</strong> (pra ele não achar que "alto = socorro") e <strong>palavras parecidas</strong>.</p>
+  <ul>
+    <li><strong>Sem <code>loud_speech</code></strong>, o modelo disparava com qualquer tom alto. Com ela, aprendeu que o gatilho é a <strong>palavra</strong>, não o <strong>volume</strong>.</li>
+    <li><strong>Pitch shift simétrico (±3 semitons) em positivos E negativos</strong> → robustez a vozes agudas/graves <strong>sem</strong> ensinar "agudo = socorro".</li>
+    <li><strong>Augmentation conservadora</strong> (shift ±150 ms, ruído leve, ganho suave). Reverb/stretch pesados deixavam as probabilidades erráticas — tiramos.</li>
+    <li><strong>Split por arquivo</strong> (não por janela) pra não vazar o mesmo áudio entre treino e teste.</li>
+    <li><strong>Boost in-domain moderado (2×)</strong> pros dados do mic; boost alto (6×) enviesava demais pra minha voz.</li>
+  </ul>
+
+  <h3>3.6 Decisão: threshold + debounce</h3>
+  <p>A CNN dá uma probabilidade <code>p</code>. Pra virar alerta:</p>
+  <ul>
+    <li><strong><code>THRESHOLD = 0.55</code></strong>: acima disso, "candidato a socorro".</li>
+    <li><strong><code>CONSEC = 3</code></strong>: precisa de <strong>3 janelas seguidas</strong> acima do limiar (~375 ms) → mata disparos de um frame isolado.</li>
+    <li><strong><code>RMS_GATE</code></strong>: se é silêncio/fundo, nem chama o modelo (economia + menos falso-positivo).</li>
+  </ul>
+
+  <h3>3.7 Quantização (por que int8)</h3>
+  <p>Treinamos em float32, mas exportamos em <strong>int8</strong> (TFLite Micro): pesos e ativações viram inteiros de 8 bits. Ganho: modelo de <strong>~30 KB</strong>, inferência rápida, sem FP pesado. A T3 <strong>quantiza</strong> a entrada antes do <code>Invoke()</code> e <strong>dequantiza</strong> a saída pra ler a probabilidade.</p>
+
+  <h3>3.8 Domain adaptation — o que destravou o chip <span style="color:var(--mut);font-size:14px">(história forte)</span></h3>
+  <p>No PC o modelo ia muito bem, mas <strong>no chip não detectava</strong> (<code>p ≈ 0.02</code>). Diagnóstico: <strong>domain shift</strong> — o modelo aprendeu com áudio de celular/mic de PC e <strong>nunca tinha ouvido o INMP441</strong>, que tem timbre/ruído próprios.</p>
+  <ol>
+    <li>Pusemos um <strong>modo de gravação</strong> no firmware (<code>DUMP_AUDIO</code>) que <strong>transmite pela serial o áudio cru do INMP441</strong> (int16, 16 kHz, 921600 baud).</li>
+    <li>Gravamos "socorro" <strong>pelo próprio mic do projeto</strong> e reconstruímos os WAVs no PC.</li>
+    <li><strong>Diagnóstico numérico:</strong> o modelo antigo acertava 4 de 7 gravações; as 2 que falhavam eram <strong>áudio saturado</strong> (grito colado no mic).</li>
+    <li><strong>Retreinamos</strong> incluindo essas gravações do INMP441 (inclusive as saturadas).</li>
+  </ol>
+  <table>
+    <thead><tr><th>Métrica (após retreino)</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>INMP441 — as 7 gravações</td><td><strong>p = 0,99–1,00</strong> (antes: 0,02–0,03 nas que falhavam)</td></tr>
+      <tr><td>Regressão nos positivos originais</td><td><strong>95% mantidos</strong></td></tr>
+      <tr><td>Falso-positivo nos negativos</td><td><strong>0%</strong></td></tr>
+    </tbody>
+  </table>
+  <blockquote>Moral: em edge ML, <strong>o modelo precisa treinar com o sensor real</strong>. Foi o que fez funcionar no chip.</blockquote>
+
+  <hr>
+
+  <h2 id="s4"><span class="n">4.</span>Alerta e notificação</h2>
+  <p>Ao confirmar socorro, a T4:</p>
+  <ul>
+    <li><strong>pisca o LED vermelho</strong> e <strong>toca o buzzer</strong> (alerta local imediato);</li>
+    <li><strong>liga via Twilio</strong> (uma vez, cooldown de 30 s) tocando uma mensagem tipo <em>"este número está pedindo emergência na rua tal"</em>;</li>
+    <li>só o <strong>evento</strong> sai do dispositivo — <strong>o áudio nunca é enviado</strong> (privacidade + banda).</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="s5"><span class="n">5.</span>Checklist do enunciado</h2>
+  <table>
+    <thead><tr><th>Pedido</th><th>Como atendemos</th></tr></thead>
+    <tbody>
+      <tr><td>Captura via ESP32 + INMP441</td><td>T1 CaptureTask (I2S, buffer circular)</td></tr>
+      <tr><td>Modelo pré-treinado detectando o som</td><td>CNN int8 (TFLite Micro) embarcada</td></tr>
+      <tr><td>RTOS com ≥ 3 tarefas sincronizadas</td><td><strong>4 tarefas</strong> + mutex + semáforo + fila</td></tr>
+      <tr><td>Conflitos de concorrência resolvidos</td><td><code>ringMutex</code> (buffer), <code>blockSem</code> (produtor-consumidor), <code>featQueue</code> (desacople)</td></tr>
+      <tr><td>Latência de cada etapa medida</td><td><code>micros()</code> em T2/T3 + ponta-a-ponta no Serial</td></tr>
+      <tr><td>Alerta por LED/buzzer</td><td>T4 AlertTask (LED vermelho + buzzer)</td></tr>
+      <tr><td>Modelo <code>.onnx</code> + diagrama RTOS + relatório</td><td>em <code>treino/modelos/</code> e <code>docs/</code></td></tr>
+      <tr><td>Código de teste (simula + mede performance)</td><td><code>treino/testar.py</code></td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2 id="s6"><span class="n">6.</span>Perguntas que podem me fazer</h2>
+  <div class="card">
+    <p><strong>"Por que mutex no buffer mas fila nas features?"</strong><br>O buffer é <strong>memória compartilhada</strong> de acesso concorrente → mutex. As features são um <strong>fluxo de mensagens</strong> de uma tarefa pra outra → fila desacopla e tolera atraso.</p>
+    <p><strong>"E se duas tarefas quiserem o buffer ao mesmo tempo?"</strong><br>O mutex serializa; como a seção crítica é mínima (só o índice), a espera é desprezível.</p>
+    <p><strong>"Por que 4 tarefas e não uma só?"</strong><br>Ritmos e prioridades diferentes; separar evita que o MFCC/ligação bloqueiem a captura (deadline rígido).</p>
+    <p><strong>"Por que não mandar o áudio pra nuvem?"</strong><br>Latência, banda e privacidade. Tudo decide na borda; só o alerta sai.</p>
+    <p><strong>"Por que não funcionava no chip e agora funciona?"</strong><br><em>Domain shift</em>: retreinamos com áudio do próprio INMP441 (domain adaptation).</p>
+    <p><strong>"Como garante que não dispara com qualquer barulho?"</strong><br>Negativos de fala alta + palavras parecidas, threshold <strong>e</strong> debounce de 3 janelas, gate de RMS.</p>
+  </div>
+
+  <p class="foot">Feito com café, muitos "SOCORRO!" gritados no microfone, e um ESP32 corajoso. 🆘</p>
+
+</div>
+</body>
+</html>

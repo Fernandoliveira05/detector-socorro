@@ -24,6 +24,16 @@ while time.time() - t0 < dur:
     buf += ser.read(4096)
 ser.close()
 y = np.frombuffer(bytes(buf[: len(buf)//2*2]), dtype='<i2').astype(np.float32) / 32768.0
+got = len(y) / SR
+if got < dur * 0.5:                                  # veio muito menos áudio que o pedido
+    print(f"⚠️  ATENÇÃO: só chegaram {got:.1f}s de {dur:.0f}s pedidos.")
+    print("   O ESP provavelmente NÃO está com DUMP_AUDIO=1 gravado. Reflashe o firmware de captura e tente de novo.")
+peak = float(np.max(np.abs(y))) if len(y) else 0.0
+clip = float(np.mean(np.abs(y) > 0.98)) * 100 if len(y) else 0.0
 path = out / f"{nome}_{int(time.time())}.wav"
 sf.write(path, y, SR)
-print(f"salvo: {path}  ({len(y)/SR:.1f}s, rms={np.sqrt(np.mean(y**2)):.3f})")
+print(f"salvo: {path}  ({got:.1f}s, rms={np.sqrt(np.mean(y**2)):.3f}, pico={peak:.2f}, estouro={clip:.1f}%)")
+if clip > 1.0:
+    print("   ⚠️  ainda estourando (>1%). Aumente GAIN_SHIFT no config.h (18→19→20), reflashe e repita.")
+elif peak > 0.05:
+    print("   ✅ áudio limpo (sem estouro).")
