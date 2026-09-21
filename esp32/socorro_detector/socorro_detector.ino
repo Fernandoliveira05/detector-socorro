@@ -201,13 +201,17 @@ void setupI2S() {
 
 void setupModel() {
   const tflite::Model* model = tflite::GetModel(g_socorro_model);
-  static tflite::MicroMutableOpResolver<8> resolver;
+  static tflite::MicroMutableOpResolver<16> resolver;
   resolver.AddConv2D();
+  resolver.AddDepthwiseConv2D();
   resolver.AddMaxPool2D();
+  resolver.AddAveragePool2D();
   resolver.AddFullyConnected();
   resolver.AddReshape();
   resolver.AddSoftmax();
   resolver.AddMean();              // GlobalAveragePooling2D
+  resolver.AddMul();               // BatchNormalization (escala) -> MUL
+  resolver.AddAdd();               // BatchNormalization (offset) -> ADD
   resolver.AddQuantize();
   resolver.AddDequantize();
   static tflite::MicroInterpreter s(model, resolver, tensor_arena, kArenaSize);

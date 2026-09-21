@@ -441,9 +441,13 @@
   <details><summary>Erro de compilação citando <code>tensorflow/lite/…</code></summary>
     <p>A biblioteca TFLite Micro instalada tem nomes de include diferentes. Confirme que
        instalou <b>Chirale_TensorFlowLite</b>. Se usar outra, ajuste os <code>#include</code>
-       no topo de <code>socorro_detector.ino</code> conforme a documentação dela. Alguns
-       resolvers pedem <code>AddResizeNearestNeighbor</code> ou nomes distintos — o compilador
-       diz qual falta; é só adicionar a linha correspondente no <code>setupModel()</code>.</p></details>
+       no topo de <code>socorro_detector.ino</code> conforme a documentação dela.</p></details>
+
+  <details><summary>No Serial: <code>Didn't find op for builtin opcode 'X'</code></summary>
+    <p>O modelo usa um operador que não foi registrado. Em <code>setupModel()</code> adicione
+       <code>resolver.Add<b>X</b>();</code> (ex.: <code>AddMul()</code>, <code>AddAdd()</code>) e
+       aumente o número do <code>MicroMutableOpResolver&lt;N&gt;</code>. Já deixamos os comuns
+       registrados (Conv2D, Mul, Add, Mean, Softmax, Quantize…).</p></details>
 
   <details><summary>Erro de RAM: <code>region `dram0_0_seg' overflowed</code> ao compilar</summary>
     <p>É falta de memória RAM interna. O firmware já foi deixado <b>enxuto</b> (áudio em
