@@ -33,21 +33,9 @@ static void twilioPost(const String& endpoint, const String& body) {
   IPAddress ip;
   bool dns = WiFi.hostByName("api.twilio.com", ip);
   Serial.printf("[Twilio] DNS api.twilio.com -> %s\n", dns ? ip.toString().c_str() : "FALHOU");
-  if (dns) {
-    WiFiClient probe;
-    bool tcp = probe.connect(ip, 443, 8000);
-    Serial.printf("[Twilio] TCP :443 -> %s\n", tcp ? "ok" : "recusado");
-    probe.stop();
-    // teste TLS direto: pega o erro exato do mbedTLS
-    WiFiClientSecure ts; ts.setInsecure(); ts.setHandshakeTimeout(30);
-    bool tls = ts.connect("api.twilio.com", 443);
-    if (!tls) { char e[160]=""; ts.lastError(e, sizeof(e));
-      Serial.printf("[Twilio] TLS handshake FALHOU (heap agora=%u): %s\n", ESP.getFreeHeap(), e); }
-    else Serial.println("[Twilio] TLS handshake ok");
-    ts.stop();
-  }
   WiFiClientSecure client;
   client.setInsecure();                 // demo: pula validação de cert
+  client.setBufferSizes(8192, 2048);    // reduz buffers TLS: sobra heap contíguo p/ o parse do cert (X509)
   client.setHandshakeTimeout(30);       // s: dá tempo pro TLS da Twilio
   HTTPClient http;
   http.setConnectTimeout(20000);        // ms: TCP+TLS connect
