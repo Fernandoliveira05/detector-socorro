@@ -17,6 +17,7 @@
 #include <driver/i2s.h>
 #include "soc/soc.h"           // p/ desligar o detector de brownout
 #include "soc/rtc_cntl_reg.h"
+#include "esp_task_wdt.h"      // p/ afrouxar o watchdog durante o handshake TLS
 #include "config.h"
 #include "features.h"
 #include "model_data.h"
@@ -262,10 +263,13 @@ void setup() {
 
   pinMode(PIN_LED, OUTPUT); pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_LED_RED, OUTPUT); digitalWrite(PIN_LED_RED, LOW);
-  // O handshake TLS (ligação Twilio) bloqueia a CPU por vários segundos — sem isso
-  // o task watchdog reinicia o ESP no meio da ligação. Desliga o WDT das tarefas.
-  disableCore0WDT();
-  disableCore1WDT();
+  // O handshake TLS (ligação Twilio) bloqueia a CPU por vários segundos. Em vez de
+  // desligar o watchdog (que gera flood de "task not found" no core 3.x), afrouxa:
+  // timeout de 30s, mantém as idle inscritas (sem flood) e NÃO reinicia (sem panic).
+  esp_task_wdt_config_t twdt = { .timeout_ms = 30000,
+                                 .idle_core_mask = (1 << 0) | (1 << 1),
+                                 .trigger_panic = false };
+  esp_task_wdt_reconfigure(&twdt);
   features_init();
   wifiSetup();          // conecta WiFi p/ a ligação Twilio (Fase 2)
   setupI2S();
