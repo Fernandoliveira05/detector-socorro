@@ -35,7 +35,6 @@ static void twilioPost(const String& endpoint, const String& body) {
   Serial.printf("[Twilio] DNS api.twilio.com -> %s\n", dns ? ip.toString().c_str() : "FALHOU");
   WiFiClientSecure client;
   client.setInsecure();                 // demo: pula validação de cert
-  client.setBufferSizes(8192, 2048);    // reduz buffers TLS: sobra heap contíguo p/ o parse do cert (X509)
   client.setHandshakeTimeout(30);       // s: dá tempo pro TLS da Twilio
   HTTPClient http;
   http.setConnectTimeout(20000);        // ms: TCP+TLS connect

@@ -203,7 +203,7 @@ void setupI2S() {
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,    // INMP441 com L/R=GND -> canal esquerdo
     .communication_format = I2S_COMM_FORMAT_STAND_I2S,
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-    .dma_buf_count = 8,
+    .dma_buf_count = 4,          // reduzido p/ liberar heap p/ o TLS (X509)
     .dma_buf_len = 256,
     .use_apll = false,
     .tx_desc_auto_clear = false,
@@ -277,7 +277,7 @@ void setup() {
   xTaskCreatePinnedToCore(CaptureTask, "capture", 4096, NULL, 5, NULL, 0);
   xTaskCreatePinnedToCore(FeatureTask, "feature", 8192, NULL, 3, NULL, 1);
   xTaskCreatePinnedToCore(DetectTask,  "detect",  8192, NULL, 2, NULL, 0);
-  xTaskCreatePinnedToCore(AlertTask,   "alert",   16384, NULL, 1, NULL, 0);  // stack grande: TLS/HTTPS precisa
+  xTaskCreatePinnedToCore(AlertTask,   "alert",   8192, NULL, 1, NULL, 0);  // TLS usa heap (core 3.x), stack modesto basta
   Serial.println("Detector de socorro iniciado.");
 }
 
