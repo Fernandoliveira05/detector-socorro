@@ -38,6 +38,13 @@ static void twilioPost(const String& endpoint, const String& body) {
     bool tcp = probe.connect(ip, 443, 8000);
     Serial.printf("[Twilio] TCP :443 -> %s\n", tcp ? "ok" : "recusado");
     probe.stop();
+    // teste TLS direto: pega o erro exato do mbedTLS
+    WiFiClientSecure ts; ts.setInsecure(); ts.setHandshakeTimeout(30);
+    bool tls = ts.connect("api.twilio.com", 443);
+    if (!tls) { char e[160]=""; ts.lastError(e, sizeof(e));
+      Serial.printf("[Twilio] TLS handshake FALHOU (heap agora=%u): %s\n", ESP.getFreeHeap(), e); }
+    else Serial.println("[Twilio] TLS handshake ok");
+    ts.stop();
   }
   WiFiClientSecure client;
   client.setInsecure();                 // demo: pula validação de cert
