@@ -13,7 +13,15 @@ void wifiSetup() {
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   Serial.print("Conectando WiFi");
   for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) { delay(250); Serial.print("."); }
-  Serial.println(WiFi.status() == WL_CONNECTED ? " ok" : " FALHOU (segue offline)");
+  if (WiFi.status() == WL_CONNECTED) {
+    // Hotspot de celular costuma entregar um DNS interno que o ESP não resolve.
+    // Mantém o IP/gateway do DHCP, mas força DNS público (Google/Cloudflare).
+    WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(),
+                IPAddress(8,8,8,8), IPAddress(1,1,1,1));
+    Serial.printf(" ok  IP=%s  DNS=8.8.8.8\n", WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println(" FALHOU (segue offline)");
+  }
 }
 
 // POST autenticado na API do Twilio (Calls.json ou Messages.json).
@@ -21,6 +29,16 @@ static void twilioPost(const String& endpoint, const String& body) {
   if (WiFi.status() != WL_CONNECTED) { Serial.println("[Twilio] sem WiFi"); return; }
   Serial.printf("[Twilio] heap livre=%u  maior bloco=%u\n",
                 ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+  // DIAGNÓSTICO: separa DNS de alcance TCP
+  IPAddress ip;
+  bool dns = WiFi.hostByName("api.twilio.com", ip);
+  Serial.printf("[Twilio] DNS api.twilio.com -> %s\n", dns ? ip.toString().c_str() : "FALHOU");
+  if (dns) {
+    WiFiClient probe;
+    bool tcp = probe.connect(ip, 443, 8000);
+    Serial.printf("[Twilio] TCP :443 -> %s\n", tcp ? "ok" : "recusado");
+    probe.stop();
+  }
   WiFiClientSecure client;
   client.setInsecure();                 // demo: pula validação de cert
   client.setHandshakeTimeout(30);       // s: dá tempo pro TLS da Twilio
