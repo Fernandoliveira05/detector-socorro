@@ -33,6 +33,15 @@ static void twilioPost(const String& endpoint, const String& body) {
   IPAddress ip;
   bool dns = WiFi.hostByName("api.twilio.com", ip);
   Serial.printf("[Twilio] DNS api.twilio.com -> %s\n", dns ? ip.toString().c_str() : "FALHOU");
+  { // teste TLS direto: mostra o motivo exato do mbedTLS
+    WiFiClientSecure ts; ts.setInsecure(); ts.setHandshakeTimeout(30);
+    bool ok = ts.connect("api.twilio.com", 443);
+    if (!ok) { char e[160]=""; ts.lastError(e, sizeof(e));
+      Serial.printf("[Twilio] TLS direto FALHOU (heap=%u/%u): %s\n",
+                    ESP.getFreeHeap(), ESP.getMaxAllocHeap(), e); }
+    else Serial.println("[Twilio] TLS direto OK");
+    ts.stop();
+  }
   WiFiClientSecure client;
   client.setInsecure();                 // demo: pula validação de cert
   client.setHandshakeTimeout(30);       // s: dá tempo pro TLS da Twilio
