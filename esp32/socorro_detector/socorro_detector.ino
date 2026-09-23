@@ -17,7 +17,6 @@
 #include <driver/i2s.h>
 #include "soc/soc.h"           // p/ desligar o detector de brownout
 #include "soc/rtc_cntl_reg.h"
-#include "esp_task_wdt.h"      // p/ afrouxar o watchdog durante o handshake TLS
 #include "config.h"
 #include "features.h"
 #include "model_data.h"
@@ -169,9 +168,15 @@ void AlertTask(void* arg) {
     uint32_t now = millis();
     bool active = (int32_t)(alertUntil - now) > 0;
     if (active) {
-      // borda de subida -> LIGA pra polícia UMA vez (cooldown de 30 s)
+      // borda de subida -> aciona a notificação UMA vez (cooldown de 30 s)
       if (!wasActive && (now - lastCall > 30000 || lastCall == 0)) {
-        lastCall = now; ligarParaPolicia(lastProb);
+        lastCall = now;
+#if USE_ONDEVICE_CALL
+        ligarParaPolicia(lastProb);                    // HTTPS direto do ESP (pode reiniciar)
+#else
+        // Gateway: o notebook escuta esta linha na serial e faz a ligação Twilio.
+        Serial.printf("EVENT socorro p=%.2f\n", lastProb);
+#endif
       }
       if (now - tBlink >= BLINK_MS) {                  // pisca o LED vermelho
         ledOn = !ledOn; digitalWrite(PIN_LED_RED, ledOn); tBlink = now;
@@ -204,7 +209,7 @@ void setupI2S() {
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,    // INMP441 com L/R=GND -> canal esquerdo
     .communication_format = I2S_COMM_FORMAT_STAND_I2S,
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-    .dma_buf_count = 4,          // reduzido p/ liberar heap p/ o TLS (X509)
+    .dma_buf_count = 8,          // buffer de DMA folgado (evita perder amostras)
     .dma_buf_len = 256,
     .use_apll = false,
     .tx_desc_auto_clear = false,
@@ -263,13 +268,6 @@ void setup() {
 
   pinMode(PIN_LED, OUTPUT); pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_LED_RED, OUTPUT); digitalWrite(PIN_LED_RED, LOW);
-  // O handshake TLS (ligação Twilio) bloqueia a CPU por vários segundos. Em vez de
-  // desligar o watchdog (que gera flood de "task not found" no core 3.x), afrouxa:
-  // timeout de 30s, mantém as idle inscritas (sem flood) e NÃO reinicia (sem panic).
-  esp_task_wdt_config_t twdt = { .timeout_ms = 30000,
-                                 .idle_core_mask = (1 << 0) | (1 << 1),
-                                 .trigger_panic = false };
-  esp_task_wdt_reconfigure(&twdt);
   features_init();
   wifiSetup();          // conecta WiFi p/ a ligação Twilio (Fase 2)
   setupI2S();

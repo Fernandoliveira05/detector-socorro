@@ -47,6 +47,12 @@
 // 0 = funcionamento normal (detector).
 #define DUMP_AUDIO    0
 
+// ---- Ligação Twilio ----
+// 0 = notificação via GATEWAY (o notebook escuta a serial e faz a ligação). Recomendado:
+//     o HTTPS no próprio ESP32 esbarra em memória/watchdog junto com o modelo + WiFi.
+// 1 = tenta ligar direto do ESP (pode reiniciar no handshake TLS).
+#define USE_ONDEVICE_CALL  0
+
 // ---- Comportamento do alerta ----
 #define ALERT_HOLD_MS   8000         // mantém o alerta ativo por 8 s após detectar
 #define BLINK_MS        250          // período do piscar do LED vermelho
