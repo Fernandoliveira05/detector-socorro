@@ -262,6 +262,10 @@ void setup() {
 
   pinMode(PIN_LED, OUTPUT); pinMode(PIN_BUZZER, OUTPUT);
   pinMode(PIN_LED_RED, OUTPUT); digitalWrite(PIN_LED_RED, LOW);
+  // O handshake TLS (ligação Twilio) bloqueia a CPU por vários segundos — sem isso
+  // o task watchdog reinicia o ESP no meio da ligação. Desliga o WDT das tarefas.
+  disableCore0WDT();
+  disableCore1WDT();
   features_init();
   wifiSetup();          // conecta WiFi p/ a ligação Twilio (Fase 2)
   setupI2S();
@@ -277,7 +281,7 @@ void setup() {
   xTaskCreatePinnedToCore(CaptureTask, "capture", 4096, NULL, 5, NULL, 0);
   xTaskCreatePinnedToCore(FeatureTask, "feature", 8192, NULL, 3, NULL, 1);
   xTaskCreatePinnedToCore(DetectTask,  "detect",  8192, NULL, 2, NULL, 0);
-  xTaskCreatePinnedToCore(AlertTask,   "alert",   8192, NULL, 1, NULL, 0);  // TLS usa heap (core 3.x), stack modesto basta
+  xTaskCreatePinnedToCore(AlertTask,   "alert",   12288, NULL, 1, NULL, 0);  // folga p/ o stack do handshake TLS
   Serial.println("Detector de socorro iniciado.");
 }
 
